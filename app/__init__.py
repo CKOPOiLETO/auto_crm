@@ -3,6 +3,7 @@ from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from .config import Config
+from flask_login import login_required
 
 # Инициализируем расширения
 db = SQLAlchemy()
@@ -41,9 +42,10 @@ def create_app(config_class=Config):
 
 
     @app.route('/')
+    @login_required
     def home():
-        # Сразу перекидываем на парсер (если не залогинен - кинет на логин)
-        return redirect(url_for('parser.index'))
+        # Теперь при входе на сайт всех перекидывает на красивый дашборд
+        return redirect(url_for('manager.dashboard'))
 
     return app
 

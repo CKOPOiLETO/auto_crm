@@ -10,6 +10,7 @@ from flask_login import login_required
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from datetime import datetime
+from app.models.tariff import Tariff
 
 from app.models.car import Car
 
@@ -278,3 +279,36 @@ def update_client_status(client_id):
 def view_car(car_id):
     car = Car.query.get_or_404(car_id)
     return render_template('manager/car_details.html', car=car)
+
+
+
+# --- ДАШБОРД (ГЛАВНАЯ СТРАНИЦА) ---
+@manager_bp.route('/dashboard')
+@login_required
+def dashboard():
+    # 1. Получаем актуальные тарифы
+    tariff = Tariff.query.first()
+    
+    # 2. Подготавливаем базовые запросы
+    client_query = Client.query
+    proposal_query = Proposal.query.join(Client)
+    
+    # 3. Разграничение прав: менеджер видит только свои цифры
+    if current_user.role != 'admin':
+        client_query = client_query.filter_by(manager_id=current_user.id)
+        proposal_query = proposal_query.filter(Client.manager_id == current_user.id)
+        
+    # 4. Считаем статистику
+    clients_count = client_query.count()
+    proposals_count = proposal_query.count()
+    
+    # 5. Получаем последние 5 расчетов для таблицы
+    recent_proposals = proposal_query.order_by(Proposal.created_at.desc()).limit(5).all()
+    
+    return render_template(
+        'manager/dashboard.html', 
+        tariff=tariff,
+        clients_count=clients_count,
+        proposals_count=proposals_count,
+        recent_proposals=recent_proposals
+    )
