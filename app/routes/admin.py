@@ -8,7 +8,9 @@ from flask import abort
 from app.models.user import User
 from werkzeug.security import generate_password_hash
 from sqlalchemy import or_
-
+from sqlalchemy import func, desc # Для подсчета, суммирования и сортировки
+from app.models.proposal import Proposal
+from app.models.car import Car
 
 
 def admin_required(f):
@@ -163,3 +165,41 @@ def delete_user(user_id):
     db.session.commit()
     flash(f'Сотрудник {user.login} удален из системы.', 'warning')
     return redirect(url_for('admin.manage_users'))
+
+
+
+
+@admin_bp.route('/analytics')
+@login_required
+@admin_required
+def analytics():
+    # --- 1. Считаем конверсию в продажу ---
+    # Считаем все КП, которые были отправлены клиенту (не черновики)
+    total_sent_proposals = Proposal.query.filter(Proposal.status != 'draft').count()
+    # Считаем, сколько из них были приняты
+    accepted_proposals_count = Proposal.query.filter_by(status='accepted').count()
+    
+    if total_sent_proposals > 0:
+        conversion_rate = round((accepted_proposals_count / total_sent_proposals) * 100, 2)
+    else:
+        conversion_rate = 0
+
+    # --- 2. Считаем общую сумму успешных сделок ---
+    total_revenue = db.session.query(func.sum(Proposal.total_price_usd)).filter_by(status='accepted').scalar() or 0
+
+    # --- 3. Определяем Топ-5 популярных марок авто ---
+    # Этот запрос группирует все машины по второму слову в названии (обычно это марка)
+    top_brands_query = db.session.query(
+        func.split_part(Car.title, ' ', 2).label('brand'), # Из "2019 BMW X5" берем "BMW"
+        func.count(Proposal.id).label('count')
+    ).join(Car).group_by('brand').order_by(desc('count')).limit(5).all()
+    
+    # Готовим данные для передачи в JavaScript-график
+    top_brands_labels = [row.brand for row in top_brands_query]
+    top_brands_data = [row.count for row in top_brands_query]
+    
+    return render_template('admin/analytics.html', 
+                           conversion_rate=conversion_rate,
+                           total_revenue=round(total_revenue, 2),
+                           top_brands_labels=top_brands_labels,
+                           top_brands_data=top_brands_data)

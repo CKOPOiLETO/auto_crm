@@ -22,6 +22,7 @@
             </div>
             <div class="navbar-nav">
                 {% if current_user.role == 'admin' %}
+                    <a class="nav-link text-warning" href="/admin/analytics">📈 Аналитика</a>
                     <a class="nav-link text-warning" href="/admin/users">⚙️ Сотрудники</a>
                     <a class="nav-link text-warning" href="/admin/tariffs">💰 Тарифы</a>
                 {% endif %}
