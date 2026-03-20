@@ -4,6 +4,7 @@ from decimal import Decimal
 import re
 import datetime
 from flask_login import current_user
+from flask_login import login_required
 
 from app import db
 from app.models.car import Car
@@ -90,10 +91,12 @@ def index():
 
     return render_template('index.html', data=data, calc_result=calc_result, clients=clients, error=error)
 # --- НОВЫЙ РОУТ ДЛЯ СОХРАНЕНИЯ КОММЕРЧЕСКОГО ПРЕДЛОЖЕНИЯ ---
+# app/routes/parser.py
+
 @parser_bp.route('/save_proposal', methods=['POST'])
+@login_required
 def save_proposal():
     try:
-        # 1. Получаем данные из скрытых полей формы
         client_id = request.form.get('client_id')
         vin = request.form.get('vin')
         title = request.form.get('title')
@@ -102,11 +105,33 @@ def save_proposal():
         photo_url = request.form.get('photo_url')
         engine_volume = int(request.form.get('engine_volume', 0))
         manufacture_year = int(request.form.get('manufacture_year', 0))
+        
+        # Получаем словари характеристик и фото
+        import json
         all_params = json.loads(request.form.get('all_params_json', '{}'))
         all_photos = json.loads(request.form.get('all_photos_json', '[]'))
+
+        # --- ИЗВЛЕКАЕМ ТИП ТОПЛИВА И ПОВРЕЖДЕНИЯ ---
+        # Ограничиваем длину до 20 символов, чтобы не было ошибки базы данных
+        fuel = all_params.get('Тип топлива', 'Не указан')[:20]
         
+        # Склеиваем первичное и вторичное повреждения
+        primary_dmg = all_params.get('Первичное повреждение', '')
+        secondary_dmg = all_params.get('Вторичное повреждение', '')
         
-        # 2. Проверяем, есть ли уже такая машина в БД. Если нет - создаем.
+        if primary_dmg and secondary_dmg:
+            damage = f"{primary_dmg} / {secondary_dmg}"
+        elif primary_dmg:
+            damage = primary_dmg
+        elif secondary_dmg:
+            damage = secondary_dmg
+        else:
+            damage = "Не указано"
+            
+        # Ограничиваем длину до 100 символов, согласно VARCHAR(100) в БД
+        damage = damage[:100]
+
+        # 2. Проверяем, есть ли машина, если нет - создаем
         car = Car.query.filter_by(vin=vin).first()
         if not car:
             car = Car(
@@ -117,13 +142,15 @@ def save_proposal():
                 photo_url=photo_url,
                 engine_volume=engine_volume,
                 manufacture_year=manufacture_year,
+                fuel_type=fuel,           # <--- СОХРАНЯЕМ ТИП ТОПЛИВА
+                damage_type=damage,       # <--- СОХРАНЯЕМ ПОВРЕЖДЕНИЯ
                 additional_params=all_params, 
                 gallery_urls=all_photos
             )
             db.session.add(car)
-            db.session.commit() # Важно закоммитить, чтобы получить car.id
+            db.session.commit()
 
-        # 3. Создаем коммерческое предложение и привязываем к машине и клиенту
+        # 3. Создаем коммерческое предложение
         new_proposal = Proposal(
             client_id=client_id,
             car_id=car.id,
@@ -131,15 +158,15 @@ def save_proposal():
             customs_fee=Decimal(request.form.get('duty_usd', 0)),
             total_price_usd=Decimal(request.form.get('total_usd', 0)),
             total_price_byn=Decimal(request.form.get('total_byn', 0)),
-            status='draft' # Начальный статус - черновик
+            status='draft'
         )
         db.session.add(new_proposal)
         db.session.commit()
         
-        flash(f'Коммерческое предложение для клиента успешно создано!', 'success')
+        flash(f'Коммерческое предложение успешно создано!', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Ошибка при сохранении предложения: {e}', 'danger')
+        print(f"[!] Save Error: {e}")
         
-    # Возвращаемся на главную страницу парсера
     return redirect(url_for('parser.index'))
