@@ -11,23 +11,16 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_
 from datetime import datetime
 from app.models.tariff import Tariff
-
+import cloudscraper
 from app.models.car import Car
+
+
 
 
 # Создаем Blueprint для менеджера с префиксом /manager
 manager_bp = Blueprint('manager', __name__, url_prefix='/manager', template_folder='../templates/manager')
 
-# # 1. Список всех клиентов (Read)
-# @manager_bp.route('/clients')
-# @login_required
-# def list_clients():
-#     clients = Client.query.order_by(Client.created_at.desc()).all()
-#     return render_template('clients.html', clients=clients)
 
-# from flask_login import login_required, current_user
-
-# app/routes/manager.py
 
 @manager_bp.route('/clients')
 @login_required
@@ -155,28 +148,30 @@ def list_proposals():
 @manager_bp.route('/proposals/pdf/<int:proposal_id>')
 @login_required
 def generate_proposal_pdf(proposal_id):
-    # 1. Находим предложение
     proposal = Proposal.query.options(
         db.joinedload(Proposal.client),
         db.joinedload(Proposal.car)
     ).get_or_404(proposal_id)
     
-    # 2. Пересчитываем стоимость
     calculator = AutoCalculator()
     calc_result = calculator.calculate_all(
         price_usd=float(proposal.car.price_usd),
         engine_volume=proposal.car.engine_volume,
-        year=proposal.car.manufacture_year
+        year=proposal.car.manufacture_year,
+        custom_shipping=float(proposal.shipping_cost)
     )
 
-    # 3. Генерируем HTML из шаблона
-    rendered_html = render_template('proposal_pdf.html', proposal=proposal, calc=calc_result)
+    # Генерируем HTML, но БЕЗ передачи переменных для фото
+    rendered_html = render_template(
+        'manager/proposal_pdf.html', 
+        proposal=proposal, 
+        calc=calc_result
+    )
     
-    # 4. Настройка пути к wkhtmltopdf
+    # --- Остальной код генерации PDF остается прежним ---
     path_wkhtmltopdf = r'C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe'
     config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
     
-    # 5. Опции PDF (настройка внешнего вида)
     options = {
         'page-size': 'A4',
         'margin-top': '0.75in',
@@ -184,28 +179,21 @@ def generate_proposal_pdf(proposal_id):
         'margin-bottom': '0.75in',
         'margin-left': '0.75in',
         'encoding': "UTF-8",
-        'no-outline': None
+        'no-outline': None,
+        'enable-local-file-access': None
     }
     
-    # 6. Генерируем PDF
     pdf_bytes = pdfkit.from_string(rendered_html, False, configuration=config, options=options)
     
-    # 7. Отдаем пользователю
     filename = f"Proposal_{proposal.id}.pdf"
-    
-    # Кодируем имя файла для заголовка Content-Disposition
     from urllib.parse import quote
     encoded_filename = quote(filename)
     
-    response = Response(
+    return Response(
         pdf_bytes,
         mimetype="application/pdf",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
-    return response
-
-
-
 
 
 # --- ИЗМЕНЕНИЕ СТАТУСА ПРЕДЛОЖЕНИЯ ---
