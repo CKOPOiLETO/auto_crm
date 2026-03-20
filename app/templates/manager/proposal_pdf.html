@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Коммерческое предложение</title>
+    <style>
+        /* Стили специально для PDF документа */
+        @page { size: A4; margin: 1.5cm; }
+        body { font-family: 'Helvetica', sans-serif; font-size: 11pt; color: #333; }
+        h1 { color: #0d6efd; text-align: center; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; }
+        h3 { color: #555; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 30px;}
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        .car-info-table td { border: none; }
+        .car-photo { max-width: 100%; height: auto; border-radius: 8px; margin-top: 15px; }
+        .price-table th { background-color: #f8f9fa; }
+        .total { font-size: 1.5em; font-weight: bold; color: #0d6efd; text-align: right; }
+        .footer { text-align: center; margin-top: 40px; font-size: 9pt; color: #888; }
+    </style>
+</head>
+<body>
+
+    <h1>Коммерческое предложение №{{ proposal.id }}</h1>
+    <p>Дата: {{ proposal.created_at.strftime('%d.%m.%Y') }}</p>
+
+    <h3>1. Информация о клиенте и автомобиле</h3>
+    <table class="car-info-table">
+        <tr>
+            <td width="50%">
+                <strong>Для клиента:</strong> {{ proposal.client.fio }}<br>
+                <strong>Телефон:</strong> {{ proposal.client.phone }}
+            </td>
+            <td width="50%">
+                <strong>Автомобиль:</strong> {{ proposal.car.title }}<br>
+                <strong>VIN:</strong> {{ proposal.car.vin }}
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <img src="{{ proposal.car.photo_url }}" class="car-photo" alt="Фото автомобиля">
+            </td>
+        </tr>
+    </table>
+
+    <h3>2. Детализация стоимости "под ключ"</h3>
+    <table class="price-table">
+        <thead>
+            <tr>
+                <th>Статья расходов</th>
+                <th style="text-align: right;">Сумма (USD)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>Цена на аукционе</td><td style="text-align: right;">${{ calc.car_price_usd }}</td></tr>
+            <tr><td>Аукционный сбор ({{ calc.auction_rate_pct }}%)</td><td style="text-align: right;">${{ calc.auction_fee_usd }}</td></tr>
+            <tr><td>Логистика (США + Море)</td><td style="text-align: right;">${{ calc.logistics_usd }}</td></tr>
+            <tr>
+                <td>Таможенная пошлина ({{ calc.calc_volume }}см³, {{ calc.calc_year }}г., с льготой 50%)</td>
+                <td style="text-align: right;">~ ${{ calc.duty_usd }} ({{ calc.duty_eur }} EUR)</td>
+            </tr>
+            <tr><td>Утильсбор, СВХ, оформление</td><td style="text-align: right;">${{ calc.customs_clearance_usd }}</td></tr>
+            <tr><td>Комиссия компании</td><td style="text-align: right;">${{ calc.company_fee_usd }}</td></tr>
+        </tbody>
+    </table>
+
+    <p class="total">Итоговая стоимость: ${{ calc.total_usd }} ({{ calc.total_byn }} BYN)</p>
+
+    <div class="footer">
+        <p>С уважением, ваша компания по подбору авто.</p>
+        <p>Цены являются ориентировочными и могут незначительно меняться в зависимости от курсов валют на день оплаты.</p>
+    </div>
+
+</body>
+</html>

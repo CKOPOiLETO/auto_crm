@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Список клиентов{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2 class="mb-4">⚙️ Справочник тарифов (Админ-панель)</h2>
+            
+            <!-- Блок для уведомлений -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <!-- Замененный блок для курсов валют -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="text-primary mb-0">Курсы валют</h5>
+                            <!-- Мы убрали тег <form> и перенесли ссылку прямо в кнопку -->
+                            <button type="submit" formaction="{{ url_for('admin.update_nbrb') }}" class="btn btn-sm btn-outline-primary shadow-sm">
+                                🔄 Получить с НБРБ
+                            </button>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Курс USD (BYN)</label>
+                                <input type="number" step="0.0001" name="usd_rate" class="form-control" value="{{ tariff.usd_rate }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Курс EUR (BYN)</label>
+                                <input type="number" step="0.0001" name="eur_rate" class="form-control" value="{{ tariff.eur_rate }}" required>
+                            </div>
+                        </div>
+
+                        <h5 class="mb-3 text-primary">Логистика</h5>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">По США ($)</label>
+                                <input type="number" step="0.01" name="shipping_usa" class="form-control" value="{{ tariff.shipping_usa }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Морем ($)</label>
+                                <input type="number" step="0.01" name="shipping_sea" class="form-control" value="{{ tariff.shipping_sea }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-danger">По Европе (€)</label> <!-- В ЕВРО! -->
+                                <input type="number" step="0.01" name="shipping_eu" class="form-control" value="{{ tariff.shipping_eu }}" required>
+                            </div>
+                        </div>
+
+                        <h5 class="mb-3 text-primary">Сборы аукциона</h5>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Комиссия аукциона (%)</label>
+                                <input type="number" step="0.01" name="auction_fee_rate" class="form-control" value="{{ tariff.auction_fee_rate }}" required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">💾 Сохранить тарифы</button>
+                            <a href="/parser" class="btn btn-outline-secondary">Вернуться к парсеру</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
