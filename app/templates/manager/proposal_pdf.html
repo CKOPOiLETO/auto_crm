@@ -6,42 +6,78 @@
     <style>
         /* Стили специально для PDF документа */
         @page { size: A4; margin: 1.5cm; }
-        body { font-family: 'Helvetica', sans-serif; font-size: 11pt; color: #333; }
-        h1 { color: #0d6efd; text-align: center; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; }
-        h3 { color: #555; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 30px;}
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-        .car-info-table td { border: none; }
-        .car-photo { max-width: 100%; height: auto; border-radius: 8px; margin-top: 15px; }
-        .price-table th { background-color: #f8f9fa; }
-        .total { font-size: 1.5em; font-weight: bold; color: #0d6efd; text-align: right; }
-        .footer { text-align: center; margin-top: 40px; font-size: 9pt; color: #888; }
+        body { font-family: 'Helvetica', sans-serif; font-size: 11pt; color: #333; line-height: 1.4; }
+        
+        h1 { color: #0d6efd; text-align: center; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; font-size: 20pt;}
+        h3 { color: #444; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 25px; margin-bottom: 10px; font-size: 13pt; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #eee; }
+        
+        /* Таблица в шапке (без рамок) */
+        .car-info-table td { border: none; padding: 4px 8px; }
+        
+        /* Главное фото */
+        .car-photo { width: 100%; max-height: 350px; object-fit: cover; border-radius: 8px; margin-top: 10px; border: 1px solid #ccc; }
+        
+        /* Таблица цен */
+        .price-table th { background-color: #f8f9fa; font-weight: bold; color: #555; }
+        
+        .total { font-size: 1.3em; font-weight: bold; color: #0d6efd; text-align: right; margin-top: 15px; border-top: 2px solid #0d6efd; padding-top: 10px; }
+        .footer { text-align: center; margin-top: 30px; font-size: 9pt; color: #888; }
+        
+        /* --- СТИЛИ ДЛЯ ВТОРОЙ СТРАНИЦЫ (ГАЛЕРЕЯ) --- */
+        .page-break { page-break-before: always; }
+        .gallery { width: 100%; text-align: center; margin-top: 15px; }
+        /* Картинки по 2 в ряд (46% ширина + отступы) */
+        .gallery-img { width: 46%; height: 230px; object-fit: cover; margin: 10px 1.5%; border-radius: 6px; border: 1px solid #ccc; display: inline-block; }
     </style>
 </head>
 <body>
 
     <h1>Коммерческое предложение №{{ proposal.id }}</h1>
-    <p>Дата: {{ proposal.created_at.strftime('%d.%m.%Y') }}</p>
-
-    <h3>1. Информация о клиенте и автомобиле</h3>
-    <table class="car-info-table">
+    
+    <table class="car-info-table" style="margin-bottom: 10px;">
         <tr>
             <td width="50%">
+                <strong>Дата:</strong> {{ proposal.created_at.strftime('%d.%m.%Y') }}<br>
                 <strong>Для клиента:</strong> {{ proposal.client.fio }}<br>
                 <strong>Телефон:</strong> {{ proposal.client.phone }}
             </td>
-            <td width="50%">
+            <td width="50%" style="text-align: right;">
                 <strong>Автомобиль:</strong> {{ proposal.car.title }}<br>
                 <strong>VIN:</strong> {{ proposal.car.vin }}
             </td>
         </tr>
-        <tr>
-            <td colspan="2">
-                <img src="{{ proposal.car.photo_url }}" class="car-photo" alt="Фото автомобиля">
-            </td>
-        </tr>
     </table>
 
+
+    <!-- Характеристики из БД -->
+    <h3>1. Характеристики автомобиля</h3>
+    <table>
+        <tbody>
+            <tr>
+                <td style="width: 40%; color: #666;">Тип топлива</td>
+                <td style="font-weight: bold;">{{ proposal.car.fuel_type or 'Не указано' }}</td>
+            </tr>
+            <tr>
+                <td style="color: #666;">Повреждения</td>
+                <td style="font-weight: bold; color: #dc3545;">{{ proposal.car.damage_type or 'Не указано' }}</td>
+            </tr>
+            {% if proposal.car.additional_params %}
+                {% for key, val in proposal.car.additional_params.items() %}
+                    {% if key not in['engine_volume', 'Тип топлива', 'Первичное повреждение', 'Вторичное повреждение'] %}
+                    <tr>
+                        <td style="color: #666;">{{ key }}</td>
+                        <td style="font-weight: bold;">{{ val }}</td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    <!-- Цены -->
     <h3>2. Детализация стоимости "под ключ"</h3>
     <table class="price-table">
         <thead>
@@ -51,9 +87,9 @@
             </tr>
         </thead>
         <tbody>
-            <tr><td>Цена на аукционе</td><td style="text-align: right;">${{ calc.car_price_usd }}</td></tr>
+            <tr><td>Цена на аукционе</td><td style="text-align: right; font-weight: bold;">${{ calc.car_price_usd }}</td></tr>
             <tr><td>Аукционный сбор ({{ calc.auction_rate_pct }}%)</td><td style="text-align: right;">${{ calc.auction_fee_usd }}</td></tr>
-            <tr><td>Логистика (США + Море)</td><td style="text-align: right;">${{ calc.logistics_usd }}</td></tr>
+            <tr><td>Логистика (по выбранному тарифу)</td><td style="text-align: right;">${{ calc.logistics_usd }}</td></tr>
             <tr>
                 <td>Таможенная пошлина ({{ calc.calc_volume }}см³, {{ calc.calc_year }}г., с льготой 50%)</td>
                 <td style="text-align: right;">~ ${{ calc.duty_usd }} ({{ calc.duty_eur }} EUR)</td>
@@ -63,12 +99,14 @@
         </tbody>
     </table>
 
-    <p class="total">Итоговая стоимость: ${{ calc.total_usd }} ({{ calc.total_byn }} BYN)</p>
+    <div class="total">Итоговая стоимость: ${{ calc.total_usd }} ({{ calc.total_byn }} BYN)</div>
 
     <div class="footer">
-        <p>С уважением, ваша компания по подбору авто.</p>
+        <p>С уважением, AutoCapital.</p>
         <p>Цены являются ориентировочными и могут незначительно меняться в зависимости от курсов валют на день оплаты.</p>
     </div>
+
+   
 
 </body>
 </html>
