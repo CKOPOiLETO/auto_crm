@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Список клиентов{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h2 class="mb-4">{{ title }}</h2>
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">ФИО клиента</label>
+                            <input type="text" name="fio" class="form-control" value="{{ client.fio if client else '' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Телефон</label>
+                            <input type="text" name="phone" class="form-control" value="{{ client.phone if client else '' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Мессенджер (Telegram, Viber...)</label>
+                            <input type="text" name="messenger" class="form-control" value="{{ client.messenger if client else '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Статус клиента</label>
+                            <select name="status" class="form-select">
+                                {% set statuses = ['new', 'in_progress', 'done', 'rejected'] %}
+                                {% for s in statuses %}
+                                    <option value="{{ s }}" {% if client and client.status == s %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">{{ 'Сохранить изменения' if client else 'Добавить клиента' }}</button>
+                            <a href="{{ url_for('manager.list_clients') }}" class="btn btn-secondary">Отмена</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

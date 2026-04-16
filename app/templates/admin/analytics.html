@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Аналитический отчет{% endblock %}
+
+{% block content %}
+<div class="py-4">
+    <h2 class="mb-4 fw-bold">📈 Аналитический отчет</h2>
+
+    <!-- Карточки с KPI -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Конверсия в продажу</h6>
+                    <h2 class="mb-0 fw-bold text-success">{{ conversion_rate }}%</h2>
+                    <small class="text-muted">(из отправленных в "Принято")</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Объем закрытых сделок</h6>
+                    <h2 class="mb-0 fw-bold text-primary">${{ '{:,.2f}'.format(total_revenue) }}</h2>
+                    <small class="text-muted">(сумма всех КП в статусе "Принято")</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Всего предложений</h6>
+                    <h2 class="mb-0 fw-bold">{{ top_brands_data|sum }}</h2>
+                    <small class="text-muted">(в топ-5 марок)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- График -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Топ-5 популярных марок авто</h5>
+        </div>
+        <div class="card-body">
+            <!-- Сюда Chart.js нарисует нашу диаграмму -->
+            <canvas id="topBrandsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Подключаем библиотеку для графиков -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Скрипт для отрисовки нашего графика -->
+<script>
+    const ctx = document.getElementById('topBrandsChart');
+    
+    // Передаем данные из Python (Flask) в JavaScript
+    // Фильтр |tojson гарантирует безопасную вставку данных
+    const labels = {{ top_brands_labels | tojson }};
+    const dataValues = {{ top_brands_data | tojson }};
+
+    new Chart(ctx, {
+        type: 'bar', // Тип диаграммы - столбчатая
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Количество предложений',
+                data: dataValues,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        // Показываем только целые числа на оси Y
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false // Отключаем легенду сверху, так как у нас только один набор данных
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

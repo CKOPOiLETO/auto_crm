@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+    <title>AutoCRM | {% block title %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold text-danger" href="/">AutoCapital</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-nav me-auto">
+                <a class="nav-link" href="/">📊 Главная (Dashboard)</a>
+                <a class="nav-link" href="/parser">🚗 Калькулятор авто</a>
+                <a class="nav-link" href="/manager/clients">👥 Клиенты (CRM)</a>
+                <a class="nav-link" href="/manager/proposals">📑 Предложения</a>
+            </div>
+            <div class="navbar-nav">
+                {% if current_user.role == 'admin' %}
+                    <a class="nav-link text-warning" href="/admin/analytics">📈 Аналитика</a>
+                    <a class="nav-link text-warning" href="/admin/users">⚙️ Сотрудники</a>
+                    <a class="nav-link text-warning" href="/admin/tariffs">💰 Тарифы</a>
+                {% endif %}
+                <a class="nav-link text-danger" href="/logout">🚪 Выход </a>
+            </div>
+        </div>
+    </div>
+</nav>
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}{% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html>
