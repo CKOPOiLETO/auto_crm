@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Arial', sans-serif; font-size: 12px; }
+        h2 { text-align: center; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #aaa; padding: 8px; text-align: left; }
+        th { background-color: #eee; }
+    </style>
+</head>
+<body>
+    <h2>История заявок на подбор авто</h2>
+    <p>Отчет сформирован: {{ current_user.full_name }} ({{ current_user.role }})</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Клиент</th>
+                <th>Автомобиль</th>
+                <th>Итоговая цена (USD)</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in proposals %}
+            <tr>
+                <td>{{ p.created_at.strftime('%d.%m.%Y') }}</td>
+                <td>{{ p.client.fio }}</td>
+                <td>{{ p.car.title }}</td>
+                <td>${{ p.total_price_usd }}</td>
+                <td>{{ p.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

@@ -11,7 +11,10 @@ from sqlalchemy import or_
 from sqlalchemy import func, desc # Для подсчета, суммирования и сортировки
 from app.models.proposal import Proposal
 from app.models.car import Car
-
+from sqlalchemy import func, desc, case
+from app.models.client import Client
+from app.models.proposal import Proposal
+from app.models.car import Car
 
 def admin_required(f):
     @wraps(f)
@@ -168,38 +171,39 @@ def delete_user(user_id):
 
 
 
-
 @admin_bp.route('/analytics')
 @login_required
 @admin_required
 def analytics():
-    # --- 1. Считаем конверсию в продажу ---
-    # Считаем все КП, которые были отправлены клиенту (не черновики)
-    total_sent_proposals = Proposal.query.filter(Proposal.status != 'draft').count()
-    # Считаем, сколько из них были приняты
-    accepted_proposals_count = Proposal.query.filter_by(status='accepted').count()
-    
-    if total_sent_proposals > 0:
-        conversion_rate = round((accepted_proposals_count / total_sent_proposals) * 100, 2)
-    else:
-        conversion_rate = 0
+    # 1. Заявки в разрезе статуса (для круговой диаграммы)
+    status_counts = db.session.query(Proposal.status, func.count(Proposal.id)).group_by(Proposal.status).all()
+    status_labels = [s[0] for s in status_counts]
+    status_data = [s[1] for s in status_counts]
 
-    # --- 2. Считаем общую сумму успешных сделок ---
+    # 2. Конверсия (Отправленные vs Успешные)
+    # Считаем все, что ушло клиенту (отправлено, принято, отказ)
+    sent_proposals = Proposal.query.filter(Proposal.status.in_(['sent', 'accepted', 'rejected'])).count()
+    accepted_proposals = Proposal.query.filter_by(status='accepted').count()
+    
+    conversion_rate = round((accepted_proposals / sent_proposals * 100), 2) if sent_proposals > 0 else 0
+
+    # 3. Эффективность менеджеров (Кол-во предложений и успешных сделок)
+    manager_stats = db.session.query(
+        User.full_name,
+        func.count(Proposal.id).label('total_proposals'),
+        func.sum(case((Proposal.status == 'accepted', 1), else_=0)).label('accepted_proposals')
+    ).join(Client, Client.manager_id == User.id)\
+     .join(Proposal, Proposal.client_id == Client.id)\
+     .group_by(User.id).all()
+
+    # 4. Общая выручка (как было)
     total_revenue = db.session.query(func.sum(Proposal.total_price_usd)).filter_by(status='accepted').scalar() or 0
 
-    # --- 3. Определяем Топ-5 популярных марок авто ---
-    # Этот запрос группирует все машины по второму слову в названии (обычно это марка)
-    top_brands_query = db.session.query(
-        func.split_part(Car.title, ' ', 2).label('brand'), # Из "2019 BMW X5" берем "BMW"
-        func.count(Proposal.id).label('count')
-    ).join(Car).group_by('brand').order_by(desc('count')).limit(5).all()
-    
-    # Готовим данные для передачи в JavaScript-график
-    top_brands_labels = [row.brand for row in top_brands_query]
-    top_brands_data = [row.count for row in top_brands_query]
-    
     return render_template('admin/analytics.html', 
                            conversion_rate=conversion_rate,
-                           total_revenue=round(total_revenue, 2),
-                           top_brands_labels=top_brands_labels,
-                           top_brands_data=top_brands_data)
+                           total_revenue=total_revenue,
+                           sent_proposals=sent_proposals,
+                           accepted_proposals=accepted_proposals,
+                           status_labels=status_labels,
+                           status_data=status_data,
+                           manager_stats=manager_stats)

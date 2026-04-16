@@ -306,3 +306,34 @@ def dashboard():
         proposals_count=proposals_count,
         recent_proposals=recent_proposals
     )
+
+
+
+
+
+
+
+@manager_bp.route('/proposals/export_history')
+@login_required
+def export_history_pdf():
+    # Менеджер скачивает свою историю, админ - общую
+    if current_user.role == 'admin':
+        proposals = Proposal.query.order_by(Proposal.created_at.desc()).all()
+    else:
+        proposals = Proposal.query.join(Client).filter(Client.manager_id == current_user.id).order_by(Proposal.created_at.desc()).all()
+
+    # Рендерим специальный шаблон
+    rendered_html = render_template('manager/history_pdf.html', proposals=proposals, user=current_user)
+    
+    import pdfkit
+    from flask import Response
+    path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe' # Проверьте путь!
+    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+    
+    options = {'page-size': 'A4', 'encoding': "UTF-8", 'orientation': 'Landscape'}
+    
+    try:
+        pdf_bytes = pdfkit.from_string(rendered_html, False, configuration=config, options=options)
+        return Response(pdf_bytes, mimetype="application/pdf", headers={"Content-Disposition": "attachment; filename=History_Report.pdf"})
+    except Exception as e:
+        return f"Ошибка генерации отчета: {e}", 500
