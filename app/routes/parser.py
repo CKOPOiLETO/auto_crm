@@ -1,10 +1,12 @@
 # app/routes/parser.py
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, Response
 from decimal import Decimal
 import re
 import datetime
+from urllib.parse import urlparse, unquote
 from flask_login import current_user
 from flask_login import login_required
+import requests
 
 from app import db
 from app.models.car import Car
@@ -12,12 +14,123 @@ from app.models.client import Client # <--- Импортируем клиент�
 from app.models.proposal import Proposal # <--- Импортируем предложения
 from app.services.browser import create_driver
 from app.services.bidcars_parser import BidCarsParser
+from app.services import bidcars_image_context
 import json
 from app.services.calculator import AutoCalculator
 from datetime import datetime
 from selenium.common.exceptions import WebDriverException, NoSuchWindowException
 
 parser_bp = Blueprint('parser', __name__, template_folder='../templates/parser')
+
+_BIDCARS_HOST_EXACT = frozenset({'bid.cars', 'www.bid.cars'})
+_BIDCARS_HOST_SUFFIX = '.bid.cars'
+_MAX_PROXY_IMAGE_BYTES = 12 * 1024 * 1024
+_IMAGE_REQ_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+}
+
+
+def _allowed_bidcars_image_url(url: str) -> bool:
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url.strip())
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        host = parsed.netloc.lower().split(':')[0]
+        if host in _BIDCARS_HOST_EXACT:
+            return True
+        return host.endswith(_BIDCARS_HOST_SUFFIX)
+    except Exception:
+        return False
+
+
+def _url_looks_like_image(url: str) -> bool:
+    lower = url.lower().split('?', 1)[0]
+    return lower.endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif'))
+
+
+def _fetch_bidcars_image_bytes(url: str, ctx: dict) -> tuple[bytes, str]:
+    """Загрузка изображения с cookies/UA из сессии Selenium (иначе Cloudflare отдаёт 403)."""
+    sess = requests.Session()
+    for c in ctx.get('cookies') or []:
+        name, value = c.get('name'), c.get('value')
+        if not name:
+            continue
+        try:
+            sess.cookies.set(
+                name,
+                value,
+                domain=c.get('domain'),
+                path=c.get('path') or '/',
+            )
+        except Exception:
+            continue
+
+    ref = (ctx.get('referer') or 'https://bid.cars/').strip()
+    if not ref.endswith('/'):
+        ref = ref + '/'
+    try:
+        p = urlparse(ref)
+        origin = f'{p.scheme}://{p.netloc}' if p.scheme and p.netloc else 'https://bid.cars'
+    except Exception:
+        origin = 'https://bid.cars'
+
+    ua = (ctx.get('user_agent') or '').strip() or _IMAGE_REQ_HEADERS['User-Agent']
+    headers = {
+        'User-Agent': ua,
+        'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Referer': ref,
+        'Origin': origin,
+        'Sec-Fetch-Dest': 'image',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Site': 'same-site',
+    }
+    r = sess.get(url, timeout=25, headers=headers, allow_redirects=True)
+    r.raise_for_status()
+    data = r.content
+    if len(data) > _MAX_PROXY_IMAGE_BYTES:
+        raise ValueError('image too large')
+    head = data[:64].lstrip().lower()
+    if head.startswith(b'<!doctype') or head.startswith(b'<html'):
+        raise ValueError('unexpected html (cloudflare?)')
+    ct = (r.headers.get('Content-Type') or '').split(';')[0].strip().lower()
+    if ct.startswith('image/'):
+        content_type = ct
+    elif _url_looks_like_image(url):
+        content_type = 'image/jpeg'
+    else:
+        raise ValueError('not an image')
+    return data, content_type
+
+
+@parser_bp.route('/parser/bidcars-image')
+def bidcars_image():
+    """Прокси картинок: CORP + Cloudflare — нужны cookie/UA от Selenium (параметр ck)."""
+    raw = request.args.get('url', '')
+    url = unquote(raw) if raw else ''
+    ck = (request.args.get('ck') or '').strip()
+    if not _allowed_bidcars_image_url(url):
+        abort(404)
+    ctx = bidcars_image_context.get(ck) if ck else None
+    if not ctx:
+        abort(401)
+    try:
+        data, content_type = _fetch_bidcars_image_bytes(url, ctx)
+    except (requests.RequestException, ValueError) as e:
+        print(f"[!] bidcars-image failed: {e}")
+        abort(502)
+    return Response(
+        data,
+        mimetype=content_type,
+        headers={'Cache-Control': 'private, max-age=300'},
+    )
+
 
 @parser_bp.route('/parser', methods=['GET', 'POST'])
 #@login_required
@@ -26,7 +139,8 @@ def index():
     calc_result = None
     clients = None 
     error = None
-    
+    img_ck_token = None
+
     if request.method == 'POST':
         url = request.form.get('url')
         if url:
@@ -36,6 +150,17 @@ def index():
                 driver = create_driver()
                 parser = BidCarsParser(driver)
                 data = parser.parse_all(url)
+
+                # Контекст для прокси фото (Cloudflare пропускает только с cookie из этого браузера)
+                if data and data.get('photos'):
+                    try:
+                        ua = driver.execute_script("return navigator.userAgent")
+                        lot_ref = (data.get('url') or url).strip()
+                        img_ck_token = bidcars_image_context.store(
+                            driver.get_cookies(), ua, lot_ref
+                        )
+                    except Exception as e:
+                        print(f"[!] bidcars image context: {e}")
 
                 # 2. Проверяем, удалось ли получить данные
                 # Если цена вернулась как "$0" или None, значит защита нас заблокировала
@@ -89,7 +214,14 @@ def index():
                     except:
                         pass 
 
-    return render_template('index.html', data=data, calc_result=calc_result, clients=clients, error=error)
+    return render_template(
+        'index.html',
+        data=data,
+        calc_result=calc_result,
+        clients=clients,
+        error=error,
+        img_ck_token=img_ck_token,
+    )
 # --- НОВЫЙ РОУТ ДЛЯ СОХРАНЕНИЯ КОММЕРЧЕСКОГО ПРЕДЛОЖЕНИЯ ---
 # app/routes/parser.py
 

@@ -1,22 +1,19 @@
 # app/routes/manager.py
-import os
-
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from app import db
 from app.models.client import Client
 from app.models.proposal import Proposal
-from flask import Response # <-- Добавить
-import pdfkit # Вместо weasyprint
-from app.services.calculator import AutoCalculator # <-- Добавить
+from flask import Response 
+import pdfkit 
+from app.services.calculator import AutoCalculator 
 from flask_login import login_required
 from flask_login import login_required, current_user
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
 from datetime import datetime
 from app.models.tariff import Tariff
 import cloudscraper
 from app.models.car import Car
-import traceback
+
 
 
 
@@ -172,7 +169,7 @@ def generate_proposal_pdf(proposal_id):
     )
     
     # --- Остальной код генерации PDF остается прежним ---
-    path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
+    path_wkhtmltopdf = r'C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe'
     config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
     
     options = {
@@ -197,9 +194,6 @@ def generate_proposal_pdf(proposal_id):
         mimetype="application/pdf",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
-
-
-
 
 
 # --- ИЗМЕНЕНИЕ СТАТУСА ПРЕДЛОЖЕНИЯ ---
@@ -309,25 +303,18 @@ def dashboard():
 
 
 
-
-
-
-
 @manager_bp.route('/proposals/export_history')
 @login_required
 def export_history_pdf():
-    # Менеджер скачивает свою историю, админ - общую
     if current_user.role == 'admin':
         proposals = Proposal.query.order_by(Proposal.created_at.desc()).all()
     else:
         proposals = Proposal.query.join(Client).filter(Client.manager_id == current_user.id).order_by(Proposal.created_at.desc()).all()
 
-    # Рендерим специальный шаблон
     rendered_html = render_template('manager/history_pdf.html', proposals=proposals, user=current_user)
     
     import pdfkit
-    from flask import Response
-    path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe' # Проверьте путь!
+    path_wkhtmltopdf = r'C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe'
     config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
     
     options = {'page-size': 'A4', 'encoding': "UTF-8", 'orientation': 'Landscape'}

@@ -82,7 +82,7 @@
                 <div class="col-md-6">
                     {% if data.photos %}
                     <div class="ratio ratio-4x3">
-                        <img src="{{ data.photos[0] }}" class="img-fluid rounded shadow-sm" style="object-fit: cover;" alt="Main photo">
+                        <img src="{% if img_ck_token %}{{ url_for('parser.bidcars_image', ck=img_ck_token, url=data.photos[0]) }}{% else %}{{ data.photos[0] }}{% endif %}" class="img-fluid rounded shadow-sm" style="object-fit: cover;" alt="Main photo">
                     </div>
                     {% else %}
                     <div class="alert alert-warning">Фотографии не найдены</div>
@@ -100,7 +100,7 @@
         <div class="col">
             <div class="card h-100 shadow-sm border-0">
                 <a href="{{ photo }}" target="_blank">
-                    <img src="{{ photo }}" class="card-img-top rounded" alt="Car photo">
+                    <img src="{% if img_ck_token %}{{ url_for('parser.bidcars_image', ck=img_ck_token, url=photo) }}{% else %}{{ photo }}{% endif %}" class="card-img-top rounded" alt="Car photo">
                 </a>
             </div>
         </div>

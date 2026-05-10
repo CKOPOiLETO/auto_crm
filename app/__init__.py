@@ -46,7 +46,11 @@ def create_app(config_class=Config):
     def home():
         # Теперь при входе на сайт всех перекидывает на красивый дашборд
         return redirect(url_for('manager.dashboard'))
-
+    from flask import render_template
+    @app.route('/manual')
+    @login_required
+    def manual():
+        return render_template('user_manual.html')
     return app
 
 # Импортируем модели в конце, чтобы SQLAlchemy их увидел
