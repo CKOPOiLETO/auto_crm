@@ -15,6 +15,7 @@ from sqlalchemy import func, desc, case
 from app.models.client import Client
 from app.models.proposal import Proposal
 from app.models.car import Car
+from datetime import datetime, time, timedelta
 
 def admin_required(f):
     @wraps(f)
@@ -175,8 +176,35 @@ def delete_user(user_id):
 @login_required
 @admin_required
 def analytics():
+    # Период для отчёта «Заявки в разрезе статуса» (по дате создания КП, UTC как в БД)
+    status_date_from = (request.args.get('status_date_from') or '').strip()
+    status_date_to = (request.args.get('status_date_to') or '').strip()
+    d_from = None
+    d_to = None
+    if status_date_from:
+        try:
+            d_from = datetime.strptime(status_date_from, '%Y-%m-%d').date()
+        except ValueError:
+            status_date_from = ''
+    if status_date_to:
+        try:
+            d_to = datetime.strptime(status_date_to, '%Y-%m-%d').date()
+        except ValueError:
+            status_date_to = ''
+    if d_from and d_to and d_from > d_to:
+        d_from, d_to = d_to, d_from
+        status_date_from = d_from.isoformat()
+        status_date_to = d_to.isoformat()
+    status_period_from = datetime.combine(d_from, time.min) if d_from else None
+    status_period_to_exclusive = datetime.combine(d_to + timedelta(days=1), time.min) if d_to else None
+
     # 1. Заявки в разрезе статуса (для круговой диаграммы)
-    status_counts = db.session.query(Proposal.status, func.count(Proposal.id)).group_by(Proposal.status).all()
+    status_q = db.session.query(Proposal.status, func.count(Proposal.id))
+    if status_period_from is not None:
+        status_q = status_q.filter(Proposal.created_at >= status_period_from)
+    if status_period_to_exclusive is not None:
+        status_q = status_q.filter(Proposal.created_at < status_period_to_exclusive)
+    status_counts = status_q.group_by(Proposal.status).all()
     status_labels = [s[0] for s in status_counts]
     status_data = [s[1] for s in status_counts]
 
@@ -206,4 +234,6 @@ def analytics():
                            accepted_proposals=accepted_proposals,
                            status_labels=status_labels,
                            status_data=status_data,
-                           manager_stats=manager_stats)
+                           manager_stats=manager_stats,
+                           status_date_from=status_date_from,
+                           status_date_to=status_date_to)

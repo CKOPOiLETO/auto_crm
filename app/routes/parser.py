@@ -19,6 +19,8 @@ import json
 from app.services.calculator import AutoCalculator
 from datetime import datetime
 from selenium.common.exceptions import WebDriverException, NoSuchWindowException
+import os
+import hashlib
 
 parser_bp = Blueprint('parser', __name__, template_folder='../templates/parser')
 
@@ -242,6 +244,7 @@ def save_proposal():
         import json
         all_params = json.loads(request.form.get('all_params_json', '{}'))
         all_photos = json.loads(request.form.get('all_photos_json', '[]'))
+        img_ck_token = (request.form.get('img_ck_token') or '').strip()
 
         # --- ИЗВЛЕКАЕМ ТИП ТОПЛИВА И ПОВРЕЖДЕНИЯ ---
         # Ограничиваем длину до 20 символов, чтобы не было ошибки базы данных
@@ -263,6 +266,54 @@ def save_proposal():
         # Ограничиваем длину до 100 символов, согласно VARCHAR(100) в БД
         damage = damage[:100]
 
+        # --- ПЫТАЕМСЯ ЗАКЭШИРОВАТЬ ФОТО ЛОКАЛЬНО (чтобы не было плейсхолдеров при просмотре сохранённых) ---
+        def _safe_vin_dir(v: str) -> str:
+            v = (v or 'UNKNOWN').strip().upper()
+            v = re.sub(r'[^A-Z0-9_-]+', '_', v)
+            return v[:32] or 'UNKNOWN'
+
+        def _ext_from_content_type(ct: str) -> str:
+            ct = (ct or '').lower()
+            if ct.endswith('png'):
+                return '.png'
+            if ct.endswith('webp'):
+                return '.webp'
+            if ct.endswith('gif'):
+                return '.gif'
+            return '.jpg'
+
+        def _cache_one_image(url: str, ctx: dict, vin_dir: str) -> str | None:
+            if not url:
+                return None
+            try:
+                data, content_type = _fetch_bidcars_image_bytes(url, ctx)
+                ext = _ext_from_content_type(content_type)
+                digest = hashlib.sha1(url.encode('utf-8', errors='ignore')).hexdigest()[:16]
+                rel_dir = os.path.join('car_photos', vin_dir)
+                abs_dir = os.path.join(os.path.dirname(__file__), '..', 'static', rel_dir)
+                abs_dir = os.path.abspath(abs_dir)
+                os.makedirs(abs_dir, exist_ok=True)
+                filename = f'{digest}{ext}'
+                abs_path = os.path.join(abs_dir, filename)
+                with open(abs_path, 'wb') as f:
+                    f.write(data)
+                return '/static/' + '/'.join([rel_dir.replace('\\', '/'), filename]).replace('\\', '/')
+            except Exception as e:
+                print(f"[!] cache image failed: {e}")
+                return None
+
+        cached_main = None
+        cached_gallery: list[str] = []
+        if all_photos and img_ck_token:
+            ctx = bidcars_image_context.get(img_ck_token)
+            if ctx:
+                vin_dir = _safe_vin_dir(vin)
+                cached_main = _cache_one_image(all_photos[0], ctx, vin_dir)
+                for u in all_photos[1:]:
+                    cu = _cache_one_image(u, ctx, vin_dir)
+                    if cu:
+                        cached_gallery.append(cu)
+
         # 2. Проверяем, есть ли машина, если нет - создаем
         car = Car.query.filter_by(vin=vin).first()
         if not car:
@@ -271,13 +322,13 @@ def save_proposal():
                 title=title,
                 auction_link=auction_link,
                 price_usd=price_usd,
-                photo_url=photo_url,
+                photo_url=cached_main or photo_url,
                 engine_volume=engine_volume,
                 manufacture_year=manufacture_year,
                 fuel_type=fuel,           # <--- СОХРАНЯЕМ ТИП ТОПЛИВА
                 damage_type=damage,       # <--- СОХРАНЯЕМ ПОВРЕЖДЕНИЯ
                 additional_params=all_params, 
-                gallery_urls=all_photos
+                gallery_urls=(cached_gallery or all_photos)
             )
             db.session.add(car)
             db.session.commit()

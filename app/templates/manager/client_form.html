@@ -20,17 +20,19 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Мессенджер (Telegram, Viber...)</label>
-                            <input type="text" name="messenger" class="form-control" value="{{ client.messenger if client else '' }}">
+                            <input type="text" name="messenger" class="form-control" value="{{ client.messenger if client else '' }}" placeholder="@user1" autocomplete="off">
                         </div>
+                        {% if client %}
                         <div class="mb-3">
                             <label class="form-label">Статус клиента</label>
                             <select name="status" class="form-select">
                                 {% set statuses = ['new', 'in_progress', 'done', 'rejected'] %}
                                 {% for s in statuses %}
-                                    <option value="{{ s }}" {% if client and client.status == s %}selected{% endif %}>{{ s }}</option>
+                                    <option value="{{ s }}" {% if client.status == s %}selected{% endif %}>{{ s }}</option>
                                 {% endfor %}
                             </select>
                         </div>
+                        {% endif %}
                         <div class="d-grid gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">{{ 'Сохранить изменения' if client else 'Добавить клиента' }}</button>
                             <a href="{{ url_for('manager.list_clients') }}" class="btn btn-secondary">Отмена</a>

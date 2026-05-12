@@ -13,6 +13,13 @@ from datetime import datetime
 from app.models.tariff import Tariff
 import cloudscraper
 from app.models.car import Car
+import os
+import re
+import hashlib
+from selenium.common.exceptions import WebDriverException, NoSuchWindowException
+from app.services.browser import create_driver
+from app.services.bidcars_parser import BidCarsParser
+from app.routes.parser import _fetch_bidcars_image_bytes
 
 
 
@@ -51,15 +58,18 @@ def list_clients():
 @login_required
 def add_client():
     if request.method == 'POST':
+        msgr = (request.form.get('messenger') or '').strip()
         new_client = Client(
             fio=request.form.get('fio'),
             phone=request.form.get('phone'),
-            manager_id=current_user.id # <--- ПРИВЯЗКА К МЕНЕДЖЕРУ
+            messenger=msgr or None,
+            manager_id=current_user.id,
+            status='new',
         )
         db.session.add(new_client)
         db.session.commit()
         return redirect(url_for('manager.list_clients'))
-    return render_template('client_form.html')
+    return render_template('client_form.html', title='Добавить клиента')
 
 # 3. Редактирование клиента (Update)
 @manager_bp.route('/clients/edit/<int:client_id>', methods=['GET', 'POST'])
@@ -161,11 +171,46 @@ def generate_proposal_pdf(proposal_id):
         custom_shipping=float(proposal.shipping_cost)
     )
 
-    # Генерируем HTML, но БЕЗ передачи переменных для фото
+    def _static_url_to_file_url(static_url: str) -> str | None:
+        """Преобразует /static/... в file:///... для wkhtmltopdf (Windows)."""
+        if not static_url or not isinstance(static_url, str):
+            return None
+        if not static_url.startswith('/static/'):
+            return None
+        rel = static_url[len('/static/'):].lstrip('/\\')
+        app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        static_dir = os.path.join(app_dir, 'static')
+        abs_path = os.path.abspath(os.path.join(static_dir, rel))
+        if not os.path.exists(abs_path):
+            return None
+        # file:///C:/... (важно: слэши)
+        return 'file:///' + abs_path.replace('\\', '/')
+
+    def _to_pdf_img_src(u: str) -> str | None:
+        """Если фото локальное (/static/...), отдаём file:///. Иначе пробуем как есть (http/https)."""
+        if not u:
+            return None
+        if isinstance(u, str) and u.startswith('/static/'):
+            return _static_url_to_file_url(u)
+        if isinstance(u, str) and (u.startswith('http://') or u.startswith('https://')):
+            return u
+        return None
+
+    main_photo_pdf = _to_pdf_img_src(proposal.car.photo_url)
+    gallery_pdf: list[str] = []
+    if proposal.car.gallery_urls:
+        for u in proposal.car.gallery_urls:
+            src = _to_pdf_img_src(u)
+            if src:
+                gallery_pdf.append(src)
+
+    # Генерируем HTML + передаём переменные для фото (wkhtmltopdf читает file:///... с enable-local-file-access)
     rendered_html = render_template(
         'manager/proposal_pdf.html', 
         proposal=proposal, 
-        calc=calc_result
+        calc=calc_result,
+        main_photo_pdf=main_photo_pdf,
+        gallery_pdf=gallery_pdf
     )
     
     # --- Остальной код генерации PDF остается прежним ---
@@ -267,6 +312,108 @@ def update_client_status(client_id):
 def view_car(car_id):
     car = Car.query.get_or_404(car_id)
     return render_template('manager/car_details.html', car=car)
+
+def _is_remote_http_url(u: str) -> bool:
+    if not u or not isinstance(u, str):
+        return False
+    return u.startswith('http://') or u.startswith('https://')
+
+def _is_local_static_url(u: str) -> bool:
+    if not u or not isinstance(u, str):
+        return False
+    return u.startswith('/static/')
+
+def _safe_vin_dir(v: str) -> str:
+    v = (v or 'UNKNOWN').strip().upper()
+    v = re.sub(r'[^A-Z0-9_-]+', '_', v)
+    return v[:32] or 'UNKNOWN'
+
+def _ext_from_content_type(ct: str) -> str:
+    ct = (ct or '').lower()
+    if ct.endswith('png'):
+        return '.png'
+    if ct.endswith('webp'):
+        return '.webp'
+    if ct.endswith('gif'):
+        return '.gif'
+    return '.jpg'
+
+def _cache_one_image(url: str, ctx: dict, vin_dir: str) -> str | None:
+    if not url:
+        return None
+    try:
+        data, content_type = _fetch_bidcars_image_bytes(url, ctx)
+        ext = _ext_from_content_type(content_type)
+        digest = hashlib.sha1(url.encode('utf-8', errors='ignore')).hexdigest()[:16]
+        rel_dir = os.path.join('car_photos', vin_dir)
+        abs_dir = os.path.join(os.path.dirname(__file__), '..', 'static', rel_dir)
+        abs_dir = os.path.abspath(abs_dir)
+        os.makedirs(abs_dir, exist_ok=True)
+        filename = f'{digest}{ext}'
+        abs_path = os.path.join(abs_dir, filename)
+        with open(abs_path, 'wb') as f:
+            f.write(data)
+        return '/static/' + '/'.join([rel_dir.replace('\\', '/'), filename]).replace('\\', '/')
+    except Exception as e:
+        print(f"[!] cache image failed: {e}")
+        return None
+
+@manager_bp.route('/car/<int:car_id>/cache_images', methods=['POST'])
+@login_required
+def cache_car_images(car_id):
+    car = Car.query.get_or_404(car_id)
+    if not car.auction_link:
+        flash('Нет ссылки аукциона — не могу обновить фото.', 'warning')
+        return redirect(url_for('manager.view_car', car_id=car_id))
+
+    driver = None
+    try:
+        driver = create_driver()
+        parser = BidCarsParser(driver)
+        data = parser.parse_all(car.auction_link)
+
+        photos = (data or {}).get('photos') or []
+        if not photos:
+            flash('Не удалось найти фото на странице лота.', 'warning')
+            return redirect(url_for('manager.view_car', car_id=car_id))
+
+        ua = driver.execute_script("return navigator.userAgent")
+        ctx = {
+            'cookies': driver.get_cookies(),
+            'user_agent': (ua or '').strip(),
+            'referer': (car.auction_link or '').strip() or 'https://bid.cars/',
+        }
+
+        vin_dir = _safe_vin_dir(car.vin)
+        cached_main = _cache_one_image(photos[0], ctx, vin_dir)
+        cached_gallery: list[str] = []
+        for u in photos:
+            cu = _cache_one_image(u, ctx, vin_dir)
+            if cu:
+                cached_gallery.append(cu)
+
+        if cached_main:
+            car.photo_url = cached_main
+        if cached_gallery:
+            car.gallery_urls = cached_gallery
+        db.session.commit()
+        flash('Фото обновлены и сохранены локально.', 'success')
+    except (NoSuchWindowException, WebDriverException) as e:
+        db.session.rollback()
+        flash('Браузер Selenium был закрыт или упал. Попробуйте еще раз.', 'danger')
+        print(f"[!] Selenium Error: {e}")
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка обновления фото: {e}', 'danger')
+        print(f"[!] Cache photos error: {e}")
+    finally:
+        if driver:
+            try:
+                driver.quit()
+            except Exception:
+                pass
+
+    return redirect(url_for('manager.view_car', car_id=car_id))
 
 
 

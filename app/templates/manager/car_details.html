@@ -40,10 +40,22 @@
                     </table>
                 </div>
                 <div class="col-md-6 text-center">
-                    <img src="{{ car.photo_url }}" class="img-fluid rounded shadow-sm" style="max-height: 400px; object-fit: cover;" alt="Main photo">
+                    {% if car.photo_url %}
+                    <img src="{{ car.photo_url }}" class="img-fluid rounded shadow-sm" style="max-height: 400px; object-fit: cover;" alt="Main photo" onerror="this.style.display='none'; document.getElementById('imgFallback').style.display='block';">
+                    <div id="imgFallback" class="alert alert-warning mt-3" style="display:none;">
+                        Фото недоступно (защита/истекли cookies). Нажмите “Обновить фото”, чтобы сохранить их локально.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mt-3">Главное фото не сохранено.</div>
+                    {% endif %}
                     <div class="mt-3 text-muted">
                         <a href="{{ car.auction_link }}" target="_blank" class="btn btn-outline-primary w-100">Перейти на страницу аукциона ↗</a>
                     </div>
+                    {% if car.auction_link and (car.photo_url and not car.photo_url.startswith('/static/')) %}
+                    <form action="{{ url_for('manager.cache_car_images', car_id=car.id) }}" method="POST" class="mt-2">
+                        <button type="submit" class="btn btn-success w-100">Обновить фото (сохранить локально)</button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -54,7 +66,7 @@
     <div class="row row-cols-2 row-cols-md-4 g-3">
         {% for photo in car.gallery_urls %}
         <div class="col">
-            <img src="{{ photo }}" class="img-fluid rounded shadow-sm" style="height: 150px; object-fit: cover;">
+            <img src="{{ photo }}" class="img-fluid rounded shadow-sm" style="height: 150px; object-fit: cover;" onerror="this.style.display='none';">
         </div>
         {% endfor %}
     </div>

@@ -51,6 +51,10 @@
         </tr>
     </table>
 
+    {% if main_photo_pdf %}
+        <img src="{{ main_photo_pdf }}" class="car-photo" alt="Фото автомобиля">
+    {% endif %}
+
 
     <!-- Характеристики из БД -->
     <h3>1. Характеристики автомобиля</h3>
@@ -106,7 +110,16 @@
         <p>Цены являются ориентировочными и могут незначительно меняться в зависимости от курсов валют на день оплаты.</p>
     </div>
 
-   
+    {% if gallery_pdf and gallery_pdf|length > 0 %}
+        <div class="page-break"></div>
+        <h3>Фотографии автомобиля</h3>
+        <div class="gallery">
+            {% for photo in gallery_pdf %}
+                <img src="{{ photo }}" class="gallery-img" alt="Фото {{ loop.index }}">
+            {% endfor %}
+        </div>
+    {% endif %}
+
 
 </body>
 </html>

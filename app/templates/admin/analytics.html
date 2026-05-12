@@ -9,8 +9,36 @@
         <div class="col-md-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white fw-bold">Заявки в разрезе статуса</div>
+                <div class="card-body border-bottom bg-light py-3">
+                    <form method="get" action="{{ url_for('admin.analytics') }}" class="row g-2 align-items-end">
+                        <div class="col-sm-5">
+                            <label class="form-label small text-muted mb-0">Дата с</label>
+                            <input type="date" name="status_date_from" class="form-control form-control-sm" value="{{ status_date_from }}">
+                        </div>
+                        <div class="col-sm-5">
+                            <label class="form-label small text-muted mb-0">Дата по</label>
+                            <input type="date" name="status_date_to" class="form-control form-control-sm" value="{{ status_date_to }}">
+                        </div>
+                        <div class="col-sm-2 d-grid">
+                            <button type="submit" class="btn btn-sm btn-primary">Показать</button>
+                        </div>
+                    </form>
+                    <p class="small text-muted mb-0 mt-2">
+                        {% if status_date_from or status_date_to %}
+                            Учтены заявки по дате создания КП
+                            {% if status_date_from %}с {{ status_date_from }}{% endif %}
+                            {% if status_date_to %}по {{ status_date_to }}{% endif %}.
+                        {% else %}
+                            Период не задан — показаны все заявки. Укажите даты и нажмите «Показать».
+                        {% endif %}
+                    </p>
+                </div>
                 <div class="card-body">
+                    {% if status_labels and status_data %}
                     <canvas id="statusChart"></canvas>
+                    {% else %}
+                    <p class="text-muted text-center py-4 mb-0">За выбранный период нет заявок.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -63,6 +91,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    {% if status_labels and status_data %}
     // График статусов (Круговой)
     const ctxStatus = document.getElementById('statusChart').getContext('2d');
     new Chart(ctxStatus, {
@@ -75,6 +104,7 @@
             }]
         }
     });
+    {% endif %}
 
     // График конверсии (Столбчатый)
     const ctxConv = document.getElementById('conversionChart').getContext('2d');

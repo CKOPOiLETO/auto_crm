@@ -301,6 +301,7 @@
             <input type="hidden" name="manufacture_year" value="{{ calc_result.calc_year }}">
             <input type="hidden" name="all_params_json" value='{{ data.params | tojson }}'>
             <input type="hidden" name="all_photos_json" value='{{ data.photos | tojson }}'>
+            <input type="hidden" name="img_ck_token" value="{{ img_ck_token or '' }}">
             
             <!-- Поля, обновляемые через JS -->
             <input type="hidden" id="hidden_logistics" name="logistics_usd" value="{{ calc_result.logistics_usd }}">
