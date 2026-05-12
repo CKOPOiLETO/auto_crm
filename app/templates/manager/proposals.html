@@ -3,12 +3,16 @@
 {% block title %}Коммерческие предложения{% endblock %}
 
 {% block content %}
+<style>
+    .proposals-actions .btn { min-width: 2.25rem; }
+    .proposals-actions .btn-outline-secondary { border-color: #ced4da; }
+</style>
 <div class="py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>📑 Коммерческие предложения</h2>
-        <div>
-            <a href="{{ url_for('manager.export_history_pdf') }}" class="btn btn-outline-danger shadow-sm me-2">📥 Выгрузить историю в PDF</a>
-            <a href="{{ url_for('parser.index') }}" class="btn btn-primary shadow-sm">➕ Создать новое КП</a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <h2 class="fw-bold text-dark m-0">Коммерческие предложения</h2>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('manager.export_history_pdf') }}" class="btn btn-outline-secondary shadow-sm">Выгрузить историю в PDF</a>
+            <a href="{{ url_for('parser.index') }}" class="btn btn-primary shadow-sm">Создать новое КП</a>
         </div>
     </div>
 
@@ -18,9 +22,9 @@
             <form method="GET" action="{{ url_for('manager.list_proposals') }}">
                 <div class="input-group">
                     <input type="text" name="q" class="form-control" placeholder="Поиск по клиенту или названию авто..." value="{{ q }}">
-                    <button class="btn btn-outline-secondary" type="submit">🔍 Найти</button>
+                    <button class="btn btn-outline-secondary" type="submit">Найти</button>
                     {% if q %}
-                    <a href="{{ url_for('manager.list_proposals') }}" class="btn btn-outline-danger" title="Сбросить поиск">❌</a>
+                    <a href="{{ url_for('manager.list_proposals') }}" class="btn btn-outline-secondary" title="Сбросить поиск">Сбросить</a>
                     {% endif %}
                 </div>
             </form>
@@ -56,9 +60,7 @@
                         <td class="fw-bold">{{ p.client.fio }}</td>
                         
                         <td>
-                            <a href="{{ url_for('manager.view_car', car_id=p.car.id) }}" class="text-decoration-none fw-bold">
-                                🔍 {{ p.car.title }}
-                            </a>
+                            <a href="{{ url_for('manager.view_car', car_id=p.car.id) }}" class="fw-bold text-decoration-none link-primary">{{ p.car.title }}</a>
                         </td>
                         <td class="fw-bold text-success">${{ p.total_price_usd }}</td>
                         <td>
@@ -69,14 +71,14 @@
                                     {% elif p.status == 'accepted' %}bg-success text-white
                                     {% elif p.status == 'rejected' %}bg-danger text-white{% endif %}" 
                                     onchange="this.form.submit()" style="cursor: pointer; width: 140px;">
-                                    <option value="draft" {% if p.status == 'draft' %}selected{% endif %}>📝 Черновик</option>
-                                    <option value="sent" {% if p.status == 'sent' %}selected{% endif %}>✉️ Отправлено</option>
-                                    <option value="accepted" {% if p.status == 'accepted' %}selected{% endif %}>✅ Принято</option>
-                                    <option value="rejected" {% if p.status == 'rejected' %}selected{% endif %}>❌ Отказ</option>
+                                    <option value="draft" {% if p.status == 'draft' %}selected{% endif %}>Черновик</option>
+                                    <option value="sent" {% if p.status == 'sent' %}selected{% endif %}>Отправлено</option>
+                                    <option value="accepted" {% if p.status == 'accepted' %}selected{% endif %}>Принято</option>
+                                    <option value="rejected" {% if p.status == 'rejected' %}selected{% endif %}>Отказ</option>
                                 </select>
                             </form>
                         </td>
-                        <td class="pe-4">
+                        <td class="pe-4 proposals-actions">
                             <a href="{{ url_for('manager.generate_proposal_pdf', proposal_id=p.id) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Скачать PDF">📄</a>
                             <form action="{{ url_for('manager.delete_proposal', proposal_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить это коммерческое предложение?');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">🗑️</button>

@@ -53,8 +53,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light text-muted">
                     <tr>
-                        <th class="ps-4 border-0">ID</th>
-                        <th class="border-0">Клиент</th>
+                        <th class="ps-4 border-0">Клиент</th>
                         <th class="border-0">Автомобиль</th>
                         <th class="border-0">Цена "под ключ"</th>
                         <th class="border-0 pe-4">Статус</th>
@@ -63,20 +62,19 @@
                 <tbody>
                     {% for p in recent_proposals %}
                     <tr>
-                        <td class="ps-4 text-muted">#{{ p.id }}</td>
-                        <td class="fw-bold">{{ p.client.fio }}</td>
+                        <td class="ps-4 fw-bold">{{ p.client.fio }}</td>
                         <td class="text-secondary">{{ p.car.title }}</td>
                         <td class="fw-bold">${{ p.total_price_usd }}</td>
                         <td class="pe-4 fw-bold">
-                            {% if p.status == 'draft' %}<span class="text-secondary">⏳ Черновик</span>
-                            {% elif p.status == 'sent' %}<span class="text-primary">✉️ Отправлено</span>
-                            {% elif p.status == 'accepted' %}<span class="text-success">✅ Принято</span>
-                            {% elif p.status == 'rejected' %}<span class="text-danger">❌ Отказ</span>{% endif %}
+                            {% if p.status == 'draft' %}<span class="text-secondary">Черновик</span>
+                            {% elif p.status == 'sent' %}<span class="text-primary">Отправлено</span>
+                            {% elif p.status == 'accepted' %}<span class="text-success">Принято</span>
+                            {% elif p.status == 'rejected' %}<span class="text-danger">Отказ</span>{% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">Вы еще не сделали ни одного расчета.</td>
+                        <td colspan="4" class="text-center text-muted py-4">Вы еще не сделали ни одного расчета.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

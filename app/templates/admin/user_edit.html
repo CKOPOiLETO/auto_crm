@@ -5,7 +5,7 @@
 {% block content %}
 <div class="row justify-content-center py-5">
     <div class="col-md-6">
-        <h2 class="mb-4">✏️ Редактирование сотрудника</h2>
+        <h2 class="mb-4 fw-bold text-dark">Редактирование сотрудника</h2>
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
                 <form method="POST">
@@ -32,7 +32,7 @@
                     </div>
                     
                     <div class="d-grid gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">💾 Сохранить изменения</button>
+                        <button type="submit" class="btn btn-primary btn-lg">Сохранить изменения</button>
                         <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary">Отмена</a>
                     </div>
                 </form>

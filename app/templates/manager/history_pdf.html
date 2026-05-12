@@ -12,7 +12,8 @@
 </head>
 <body>
     <h2>История заявок на подбор авто</h2>
-    <p>Отчет сформирован: {{ current_user.full_name }} ({{ current_user.role }})</p>
+    <p>Отчет сформирован: {{ current_user.full_name }}
+        ({% if current_user.role == 'admin' %}Администратор{% else %}Менеджер{% endif %})</p>
     <table>
         <thead>
             <tr>
@@ -30,7 +31,13 @@
                 <td>{{ p.client.fio }}</td>
                 <td>{{ p.car.title }}</td>
                 <td>${{ p.total_price_usd }}</td>
-                <td>{{ p.status }}</td>
+                <td>
+                    {% if p.status == 'draft' %}Черновик
+                    {% elif p.status == 'sent' %}Отправлено
+                    {% elif p.status == 'accepted' %}Принято
+                    {% elif p.status == 'rejected' %}Отказ
+                    {% else %}{{ p.status }}{% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

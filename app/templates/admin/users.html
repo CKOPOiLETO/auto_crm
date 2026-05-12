@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="py-4">
-    <h2 class="mb-4">👥 Управление сотрудниками</h2>
+    <h2 class="mb-4 fw-bold text-dark">Управление сотрудниками</h2>
     <div class="mb-4">
         <form method="GET">
             <div class="input-group input-group-sm" style="max-width: 400px;">
@@ -20,7 +20,7 @@
     <!-- Форма добавления нового сотрудника -->
     <div class="card shadow-sm border-0 mb-5">
         <div class="card-header bg-success text-white">
-            <h5 class="mb-0">➕ Добавить нового сотрудника</h5>
+            <h5 class="mb-0">Добавить нового сотрудника</h5>
         </div>
         <!-- Вставьте это перед таблицей -->
         <div class="card-body p-4">
@@ -77,15 +77,15 @@
                         <td class="text-muted">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
                         <td class="text-end pe-4">
                             <!-- Кнопка редактирования -->
-                            <a href="{{ url_for('admin.edit_user', user_id=u.id) }}" class="btn btn-sm btn-outline-secondary">✏️ Изменить</a>
+                            <a href="{{ url_for('admin.edit_user', user_id=u.id) }}" class="btn btn-sm btn-outline-secondary">Изменить</a>
                             
                             <!-- Кнопка удаления (скрыта для самого себя) -->
                             {% if current_user.id != u.id %}
                             <form action="{{ url_for('admin.delete_user', user_id=u.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Вы уверены, что хотите удалить сотрудника {{ u.full_name }}? Отменить это действие будет невозможно.');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">🗑️ Удалить</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
                             </form>
                             {% else %}
-                            <button class="btn btn-sm btn-outline-danger" disabled title="Нельзя удалить себя">🗑️ Удалить</button>
+                            <button class="btn btn-sm btn-outline-danger" disabled title="Нельзя удалить себя">Удалить</button>
                             {% endif %}
                         </td>
                     </tr>
