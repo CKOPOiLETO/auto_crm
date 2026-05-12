@@ -70,7 +70,7 @@
             </tr>
             {% if proposal.car.additional_params %}
                 {% for key, val in proposal.car.additional_params.items() %}
-                    {% if key not in['engine_volume', 'Тип топлива', 'Первичное повреждение', 'Вторичное повреждение'] %}
+                    {% if key not in['engine_volume', 'Тип топлива', 'Первичное повреждение', 'Вторичное повреждение', 'VIN', 'ВИН'] %}
                     <tr>
                         <td style="color: #666;">{{ key }}</td>
                         <td style="font-weight: bold;">{{ val }}</td>

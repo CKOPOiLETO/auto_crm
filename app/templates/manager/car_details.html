@@ -26,7 +26,7 @@
                             {% if car.additional_params %}
                                 {% for key, value in car.additional_params.items() %}
                                     <!-- Скрываем дубликаты, которые мы уже вынесли отдельно -->
-                                    {% if key not in['engine_volume', 'Тип топлива', 'Первичное повреждение', 'Вторичное повреждение'] %}
+                                    {% if key not in['engine_volume', 'Тип топлива', 'Первичное повреждение', 'Вторичное повреждение', 'VIN', 'ВИН'] %}
                                     <tr>
                                         <td class="fw-bold text-muted" style="width: 40%;">{{ key }}</td>
                                         <td>{{ value }}</td>
