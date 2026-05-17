@@ -99,39 +99,50 @@ def update_nbrb():
     return redirect(url_for('admin.tariffs'))
 
 
-# --- УПРАВЛЕНИЕ СОТРУДНИКАМИ ---
+# ==========================================
+# УПРАВЛЕНИЕ СОТРУДНИКАМИ
+# ==========================================
 
 @admin_bp.route('/users', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def manage_users():
     if request.method == 'POST':
-        new_user = User(
-            login=request.form.get('login'),
-            password_hash=generate_password_hash(request.form.get('password')),
-            full_name=request.form.get('full_name'),
-            role=request.form.get('role')
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        flash('Сотрудник добавлен!', 'success')
+        login_input = request.form.get('login')
+        password_input = request.form.get('password')
+        full_name_input = request.form.get('full_name')
+        
+        existing_user = User.query.filter_by(login=login_input).first()
+        
+        if existing_user:
+            flash(f'Ошибка: Сотрудник с логином "{login_input}" уже существует!', 'danger')
+        else:
+            try:
+                new_user = User(
+                    login=login_input,
+                    password_hash=generate_password_hash(password_input),
+                    full_name=full_name_input,
+                    role='manager' # Жестко задаем роль менеджера
+                )
+                db.session.add(new_user)
+                db.session.commit()
+                flash(f'Сотрудник {full_name_input} успешно добавлен!', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Произошла ошибка при сохранении: {str(e)}', 'danger')
+                
         return redirect(url_for('admin.manage_users'))
-    # Логика поиска (GET)
+
     q = request.args.get('q', '')
     query = User.query
-    
     if q:
         term = f"%{q}%"
-        query = query.filter(or_(
-            User.login.ilike(term),
-            User.full_name.ilike(term)
-        ))
+        from sqlalchemy import or_
+        query = query.filter(or_(User.login.ilike(term), User.full_name.ilike(term)))
     
     users = query.order_by(User.full_name).all()
     return render_template('admin/users.html', users=users, q=q)
-    
-    users = User.query.all()
-    return render_template('admin/users.html', users=users)
+
 
 @admin_bp.route('/users/edit/<int:user_id>', methods=['GET', 'POST'])
 @login_required
@@ -142,9 +153,8 @@ def edit_user(user_id):
     if request.method == 'POST':
         user.login = request.form.get('login')
         user.full_name = request.form.get('full_name')
-        user.role = request.form.get('role')
         
-        # Если админ ввел новый пароль, обновляем хэш
+        # Обновляем пароль, только если он был введен
         new_password = request.form.get('password')
         if new_password:
             user.password_hash = generate_password_hash(new_password)
@@ -155,11 +165,11 @@ def edit_user(user_id):
         
     return render_template('admin/user_edit.html', user=user)
 
+
 @admin_bp.route('/users/delete/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
 def delete_user(user_id):
-    # Защита от самоудаления
     if current_user.id == user_id:
         flash('Вы не можете удалить свою собственную учетную запись!', 'danger')
         return redirect(url_for('admin.manage_users'))
@@ -169,6 +179,7 @@ def delete_user(user_id):
     db.session.commit()
     flash(f'Сотрудник {user.login} удален из системы.', 'warning')
     return redirect(url_for('admin.manage_users'))
+
 
 
 

@@ -58,35 +58,57 @@ def list_clients():
 @login_required
 def add_client():
     if request.method == 'POST':
-        msgr = (request.form.get('messenger') or '').strip()
+        fio = request.form.get('fio')
+        phone = request.form.get('phone')
+        messenger = request.form.get('messenger')
+        
+        # --- НОВАЯ ПРОВЕРКА ПО РЕГУЛЯРНОМУ ВЫРАЖЕНИЮ ---
+        if not re.fullmatch(r'^\+375 \(\d{2}\) \d{3}-\d{2}-\d{2}$', phone):
+            flash('Ошибка: Введите корректный белорусский номер!', 'danger')
+            return redirect(request.url)
+        # -----------------------------------------------
+
         new_client = Client(
-            fio=request.form.get('fio'),
-            phone=request.form.get('phone'),
-            messenger=msgr or None,
-            manager_id=current_user.id,
-            status='new',
+            fio=fio,
+            phone=phone,
+            messenger=messenger,
+            manager_id=current_user.id
         )
         db.session.add(new_client)
         db.session.commit()
+        flash('Новый клиент успешно добавлен!', 'success')
         return redirect(url_for('manager.list_clients'))
-    return render_template('client_form.html', title='Добавить клиента')
 
-# 3. Редактирование клиента (Update)
+    return render_template('manager/client_form.html', title="Добавить нового клиента")
+
+
 @manager_bp.route('/clients/edit/<int:client_id>', methods=['GET', 'POST'])
 @login_required
 def edit_client(client_id):
-    client = Client.query.get_or_404(client_id) # Найти клиента или выдать ошибку 404
+    client = Client.query.get_or_404(client_id)
+    
+    if current_user.role != 'admin' and client.manager_id != current_user.id:
+        flash('Нет доступа.', 'danger')
+        return redirect(url_for('manager.list_clients'))
 
     if request.method == 'POST':
+        phone = request.form.get('phone')
+        
+        # --- ТАКАЯ ЖЕ ПРОВЕРКА ДЛЯ РЕДАКТИРОВАНИЯ ---
+        if not re.fullmatch(r'^\+375 \(\d{2}\) \d{3}-\d{2}-\d{2}$', phone):
+            flash('Ошибка: Введите корректный белорусский номер!', 'danger')
+            return redirect(request.url)
+        # --------------------------------------------
+
         client.fio = request.form.get('fio')
-        client.phone = request.form.get('phone')
+        client.phone = phone
         client.messenger = request.form.get('messenger')
         client.status = request.form.get('status')
         db.session.commit()
         flash('Данные клиента обновлены!', 'info')
         return redirect(url_for('manager.list_clients'))
 
-    return render_template('client_form.html', title="Редактировать клиента", client=client)
+    return render_template('manager/client_form.html', title="Редактировать клиента", client=client)
 
 # 4. Удаление клиента (Delete)
 @manager_bp.route('/clients/delete/<int:client_id>', methods=['POST'])
@@ -307,37 +329,29 @@ def update_client_status(client_id):
 
 
 
+
 @manager_bp.route('/car/<int:car_id>')
 @login_required
 def view_car(car_id):
     car = Car.query.get_or_404(car_id)
-    return render_template('manager/car_details.html', car=car)
+    
+    # Ищем коммерческое предложение для этого автомобиля
+    proposal = Proposal.query.filter_by(car_id=car.id).first()
+    
+    calc_result = None
+    if car.price_usd is not None:
+        calculator = AutoCalculator()
+        # Если КП есть, берем логистику оттуда, иначе считаем по умолчанию
+        shipping_cost = float(proposal.shipping_cost) if proposal and proposal.shipping_cost else None
+        
+        calc_result = calculator.calculate_all(
+            price_usd=float(car.price_usd),
+            engine_volume=car.engine_volume or 0,
+            year=car.manufacture_year or datetime.now().year - 4,
+            custom_shipping=shipping_cost
+        )
 
-def _is_remote_http_url(u: str) -> bool:
-    if not u or not isinstance(u, str):
-        return False
-    return u.startswith('http://') or u.startswith('https://')
-
-def _is_local_static_url(u: str) -> bool:
-    if not u or not isinstance(u, str):
-        return False
-    return u.startswith('/static/')
-
-def _safe_vin_dir(v: str) -> str:
-    v = (v or 'UNKNOWN').strip().upper()
-    v = re.sub(r'[^A-Z0-9_-]+', '_', v)
-    return v[:32] or 'UNKNOWN'
-
-def _ext_from_content_type(ct: str) -> str:
-    ct = (ct or '').lower()
-    if ct.endswith('png'):
-        return '.png'
-    if ct.endswith('webp'):
-        return '.webp'
-    if ct.endswith('gif'):
-        return '.gif'
-    return '.jpg'
-
+    return render_template('manager/car_details.html', car=car, proposal=proposal, calc=calc_result)
 def _cache_one_image(url: str, ctx: dict, vin_dir: str) -> str | None:
     if not url:
         return None

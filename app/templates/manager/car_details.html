@@ -4,6 +4,7 @@
 <div class="py-4">
     <a href="{{ url_for('manager.list_proposals') }}" class="btn btn-outline-secondary mb-4">Назад к предложениям</a>
     
+    <!-- Карточка автомобиля -->
     <div class="card shadow border-0 mb-4">
         <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
             <h3 class="mb-0">{{ car.title }}</h3>
@@ -14,7 +15,6 @@
                 <div class="col-md-6">
                     <h4 class="text-success mb-3">Цена на аукционе: ${{ car.price_usd }}</h4>
                     
-                    <!-- Выводим Топливо и Повреждения из отдельных колонок БД -->
                     <div class="mb-4">
                         <span class="badge bg-primary fs-6 me-2">Топливо: {{ car.fuel_type or 'Не указан' }}</span>
                         <span class="badge bg-danger fs-6">Повреждения: {{ car.damage_type or 'Не указано' }}</span>
@@ -25,7 +25,6 @@
                         <tbody>
                             {% if car.additional_params %}
                                 {% for key, value in car.additional_params.items() %}
-                                    <!-- Скрываем дубликаты, которые мы уже вынесли отдельно -->
                                     {% if key not in['engine_volume', 'Тип топлива', 'Первичное повреждение', 'Вторичное повреждение', 'VIN', 'ВИН'] %}
                                     <tr>
                                         <td class="fw-bold text-muted" style="width: 40%;">{{ key }}</td>
@@ -48,8 +47,9 @@
                     {% else %}
                     <div class="alert alert-warning mt-3">Главное фото не сохранено.</div>
                     {% endif %}
+                    
                     <div class="mt-3 text-muted">
-                        <a href="{{ car.auction_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary w-100">Перейти на страницу аукциона (новая вкладка)</a>
+                        <a href="{{ car.auction_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary w-100">Перейти на страницу аукциона</a>
                     </div>
                     {% if car.auction_link and (car.photo_url and not car.photo_url.startswith('/static/')) %}
                     <form action="{{ url_for('manager.cache_car_images', car_id=car.id) }}" method="POST" class="mt-2">
@@ -61,12 +61,75 @@
         </div>
     </div>
 
+    <!-- НОВЫЙ БЛОК: ФИНАНСОВАЯ ДЕТАЛИЗАЦИЯ -->
+    {% if calc %}
+    <div class="card shadow border-primary mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Детализация стоимости "под ключ"</h4>
+            {% if proposal %}
+                <span class="badge bg-light text-dark fs-6">
+                    Статус КП: 
+                    {% if proposal.status == 'draft' %}Черновик
+                    {% elif proposal.status == 'sent' %}Отправлено
+                    {% elif proposal.status == 'accepted' %}Принято
+                    {% elif proposal.status == 'rejected' %}Отказ{% endif %}
+                </span>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <tbody>
+                    <tr>
+                        <td class="ps-4 py-3">Цена лота на аукционе:</td>
+                        <td class="text-end pe-4 py-3 fw-bold">${{ calc.car_price_usd }}</td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4 py-3">Аукционный сбор:</td>
+                        <td class="text-end pe-4 py-3">${{ calc.auction_fee_usd }}</td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4 py-3">Логистика (сохраненный тариф):</td>
+                        <td class="text-end pe-4 py-3">${{ calc.logistics_usd }}</td>
+                    </tr>
+                    <tr class="table-warning">
+                        <td class="ps-4 py-3">
+                            Таможенная пошлина<br>
+                            <small class="text-muted">Расчет: {{ calc.calc_volume }} см³, {{ calc.calc_year }} г.в. {% if calc.has_benefit %}(Льгота 50%){% endif %}</small>
+                        </td>
+                        <td class="text-end pe-4 py-3">
+                            <span class="fw-bold">€{{ calc.duty_eur }}</span><br>
+                            <small class="text-muted">(~${{ calc.duty_usd }})</small>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4 py-3">Утильсбор и таможенное оформление:</td>
+                        <td class="text-end pe-4 py-3">${{ calc.customs_clearance_usd }}</td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4 py-3 border-bottom-0">Комиссия компании:</td>
+                        <td class="text-end pe-4 py-3 border-bottom-0">${{ calc.company_fee_usd }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-light p-4 d-flex justify-content-between align-items-center">
+            <h4 class="mb-0 text-dark fw-bold">ИТОГО К ОПЛАТЕ:</h4>
+            <div class="text-end">
+                <h2 class="mb-0 text-primary fw-bold">${{ calc.total_usd }}</h2>
+                <h5 class="text-muted mb-0">{{ calc.total_byn }} BYN</h5>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <!-- КОНЕЦ НОВОГО БЛОКА -->
+
+    <!-- Галерея -->
     {% if car.gallery_urls %}
     <h4 class="mb-3">Галерея сохраненных фото ({{ car.gallery_urls|length }})</h4>
     <div class="row row-cols-2 row-cols-md-4 g-3">
         {% for photo in car.gallery_urls %}
         <div class="col">
-            <img src="{{ photo }}" class="img-fluid rounded shadow-sm" style="height: 150px; object-fit: cover;" onerror="this.style.display='none';">
+            <img src="{{ photo }}" class="img-fluid rounded shadow-sm" style="height: 150px; width: 100%; object-fit: cover;" onerror="this.style.display='none';">
         </div>
         {% endfor %}
     </div>

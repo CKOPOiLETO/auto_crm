@@ -1,46 +1,86 @@
 {% extends "base.html" %}
 
-{% block title %}Список клиентов{% endblock %}
+{% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <h2 class="mb-4">{{ title }}</h2>
-            <div class="card shadow-sm">
-                <div class="card-body p-4">
-                    <form method="POST">
-                        <div class="mb-3">
-                            <label class="form-label">ФИО клиента</label>
-                            <input type="text" name="fio" class="form-control" value="{{ client.fio if client else '' }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Телефон</label>
-                            <input type="text" name="phone" class="form-control" value="{{ client.phone if client else '' }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Мессенджер (Telegram, Viber...)</label>
-                            <input type="text" name="messenger" class="form-control" value="{{ client.messenger if client else '' }}" placeholder="@user1" autocomplete="off">
-                        </div>
-                        {% if client %}
-                        <div class="mb-3">
-                            <label class="form-label">Статус клиента</label>
-                            <select name="status" class="form-select">
-                                {% set statuses = ['new', 'in_progress', 'done', 'rejected'] %}
-                                {% for s in statuses %}
-                                    <option value="{{ s }}" {% if client.status == s %}selected{% endif %}>{{ s }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        {% endif %}
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary">{{ 'Сохранить изменения' if client else 'Добавить клиента' }}</button>
-                            <a href="{{ url_for('manager.list_clients') }}" class="btn btn-secondary">Отмена</a>
-                        </div>
-                    </form>
-                </div>
+<div class="row justify-content-center py-5">
+    <div class="col-md-6">
+        <h2 class="mb-4 text-center">{{ title }}</h2>
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 bg-white rounded">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">ФИО клиента</label>
+                        <input type="text" name="fio" class="form-control" value="{{ client.fio if client else '' }}" placeholder="Например: Иванов Иван" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Номер телефона</label>
+                        <!-- Добавлен pattern для валидации и id для JS-маски -->
+                        <input type="tel" id="phoneInput" name="phone" class="form-control fw-bold text-primary" 
+                               value="{{ client.phone if client else '+375 (' }}" 
+                               pattern="\+375 \([0-9]{2}\) [0-9]{3}-[0-9]{2}-[0-9]{2}" 
+                               placeholder="+375 (XX) XXX-XX-XX" required>
+                        <div class="form-text">Обязательный формат: +375 (XX) XXX-XX-XX</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Мессенджер</label>
+                        <input type="text" name="messenger" class="form-control" value="{{ client.messenger if client else '' }}" placeholder="Telegram, Viber, WhatsApp...">
+                    </div>
+                    
+                    {% if client %}
+                    <div class="mb-4">
+                        <label class="form-label text-muted fw-bold">Статус клиента</label>
+                        <select name="status" class="form-select bg-light">
+                            <option value="new" {% if client.status == 'new' %}selected{% endif %}>Новый</option>
+                            <option value="in_progress" {% if client.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                            <option value="done" {% if client.status == 'done' %}selected{% endif %}>Завершен</option>
+                            <option value="rejected" {% if client.status == 'rejected' %}selected{% endif %}>Отказ</option>
+                        </select>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">{{ 'Сохранить изменения' if client else 'Добавить клиента' }}</button>
+                        <a href="{{ url_for('manager.list_clients') }}" class="btn btn-outline-secondary">Отмена</a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Скрипт для маски телефона -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const phoneInput = document.getElementById('phoneInput');
+
+    phoneInput.addEventListener('input', function (e) {
+        // Убираем все нецифровые символы
+        let value = this.value.replace(/\D/g, '');
+        
+        // Жестко фиксируем префикс 375
+        if (!value.startsWith('375')) {
+            value = '375' + value.replace(/^3?7?5?/, '');
+        }
+
+        // Формируем красивую строку
+        let formatted = '+375';
+        if (value.length > 3) formatted += ' (' + value.substring(3, 5);
+        if (value.length > 5) formatted += ') ' + value.substring(5, 8);
+        if (value.length > 8) formatted += '-' + value.substring(8, 10);
+        if (value.length > 10) formatted += '-' + value.substring(10, 12);
+        
+        this.value = formatted;
+    });
+
+    // Запрещаем пользователю стирать "+375 (" клавишей Backspace
+    phoneInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace' && this.value.length <= 7) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
 {% endblock %}

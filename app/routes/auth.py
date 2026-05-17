@@ -22,7 +22,7 @@ def login():
                 # Проверяем пароль через bcrypt
                 if bcrypt.checkpw(password_input.encode('utf-8'), user.password_hash.encode('utf-8')):
                     login_user(user)
-                    return redirect(url_for('parser.index'))
+                    return redirect(url_for('manager.dashboard'))
             
             # Если хэш нового формата (werkzeug/pbkdf2)
             elif check_password_hash(user.password_hash, password_input):
