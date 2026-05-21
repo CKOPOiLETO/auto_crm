@@ -346,3 +346,5 @@ class BidCarsParser:
             "params": self.parse_params(),
             "photos": self.parse_photos()
         }
+    
+    

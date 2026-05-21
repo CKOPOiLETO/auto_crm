@@ -27,7 +27,7 @@ def login():
             # Если хэш нового формата (werkzeug/pbkdf2)
             elif check_password_hash(user.password_hash, password_input):
                 login_user(user)
-                return redirect(url_for('parser.index'))
+                return redirect(url_for('manager.dashboard'))
                 
         flash('Неверный логин или пароль', 'danger')
     return render_template('login.html')

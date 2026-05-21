@@ -4,157 +4,156 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Руководство пользователя | AutoCRM</title>
-    <!-- Подключаем Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* Плавная прокрутка к якорям */
         html { scroll-behavior: smooth; }
-        /* Отступ сверху, чтобы заголовки не прилипали к самому краю при прокрутке */
         section { scroll-margin-top: 80px; padding-bottom: 40px; border-bottom: 1px solid #eee; margin-bottom: 40px; }
         section:last-child { border-bottom: none; }
-        /* Фиксированное боковое меню */
         .sidebar { position: sticky; top: 80px; height: calc(100vh - 100px); overflow-y: auto; }
-        .nav-pills .nav-link { color: #495057; border-radius: 6px; margin-bottom: 5px; }
-        .nav-pills .nav-link.active, .nav-pills .show>.nav-link { background-color: #0d6efd; color: white; }
+        .nav-pills .nav-link { color: #495057; border-radius: 6px; margin-bottom: 5px; font-size: 0.95rem; }
+        .nav-pills .nav-link.active { background-color: #0d6efd; color: white; }
         .nav-pills .nav-link:hover:not(.active) { background-color: #f8f9fa; }
     </style>
 </head>
 <body class="bg-light">
 
-<!-- Навигационная панель -->
 <nav class="navbar navbar-dark bg-dark sticky-top shadow-sm mb-4">
     <div class="container">
         <span class="navbar-brand fw-bold text-danger">AutoCapital</span>
-        <span class="navbar-text text-white">Официальное руководство пользователя</span>
+        <span class="navbar-text text-white">Официальное руководство пользователя (Версия 1.0)</span>
     </div>
 </nav>
 
 <div class="container">
     <div class="row">
-        <!-- Боковое меню с якорями -->
+        <!-- Боковое меню -->
         <div class="col-md-3">
             <nav class="sidebar bg-white p-3 rounded shadow-sm">
                 <h5 class="fw-bold mb-3 border-bottom pb-2">Содержание</h5>
                 <ul class="nav nav-pills flex-column">
+                    <li class="nav-item"><a class="nav-link" href="#intro">1. Общие сведения</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#requirements">2. Назначение и условия</a></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#intro">1. Введение</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#requirements">2. Назначение и условия</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#auth">3. Подготовка к работе</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#operations">4. Описание операций</a>
+                        <a class="nav-link" href="#functions">3. Описание основных функций</a>
                         <ul class="nav flex-column ms-3 mt-1">
-                            <li class="nav-item"><a class="nav-link py-1 fs-6" href="#op-parser">4.1 Парсер и калькулятор</a></li>
-                            <li class="nav-item"><a class="nav-link py-1 fs-6" href="#op-crm">4.2 База клиентов</a></li>
-                            <li class="nav-item"><a class="nav-link py-1 fs-6" href="#op-proposals">4.3 Коммерческие предложения</a></li>
-                            <li class="nav-item"><a class="nav-link py-1 fs-6" href="#op-admin">4.4 Функции администратора</a></li>
+                            <li class="nav-item"><a class="nav-link py-1" href="#func-auth">3.1 Авторизация</a></li>
+                            <li class="nav-item"><a class="nav-link py-1" href="#func-parser">3.2 Парсер и расчет</a></li>
+                            <li class="nav-item"><a class="nav-link py-1" href="#func-crm">3.3 База клиентов (CRM)</a></li>
+                            <li class="nav-item"><a class="nav-link py-1" href="#func-pdf">3.4 Экспорт в PDF</a></li>
+                            <li class="nav-item"><a class="nav-link py-1" href="#func-admin">3.5 Функции Администратора</a></li>
                         </ul>
                     </li>
-                    <li class="nav-item mt-1">
-                        <a class="nav-link" href="#messages">5. Сообщения оператору</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="#emergency">4. Аварийные ситуации</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#messages">5. Системные сообщения</a></li>
                 </ul>
             </nav>
         </div>
 
-        <!-- Основной контент руководства -->
+        <!-- Контент -->
         <div class="col-md-9">
             <div class="bg-white p-5 rounded shadow-sm">
                 
                 <div class="text-center mb-5">
                     <h1 class="fw-bold text-primary">Руководство пользователя</h1>
-                    <p class="text-muted">Программный комплекс автоматизации рабочего места менеджера по подбору авто</p>
+                    <p class="text-muted">Программный комплекс AutoCRM v1.0</p>
                 </div>
 
                 <section id="intro">
-                    <h3 class="fw-bold">1. Введение</h3>
-                    <p>Настоящее руководство предназначено для менеджеров и системных администраторов, работающих с веб-приложением <strong>AutoCRM</strong>. Программа предназначена для автоматизации процессов сбора данных с автомобильных аукционов (США), расчета логистических и таможенных расходов, а также ведения клиентской базы и формирования коммерческих предложений.</p>
+                    <h3 class="fw-bold">1. Общие сведения</h3>
+                    <p><strong>Наименование:</strong> Веб-приложение для автоматизации рабочего места менеджера по подбору авто «AutoCRM» (Версия 1.0).</p>
+                    <p><strong>Архитектура:</strong> Приложение построено по классической клиент-серверной архитектуре. Серверная часть выполняет обработку данных, расчеты и взаимодействие с базой данных, а клиентская часть отображается в веб-браузере пользователя.</p>
+                    <h5 class="mt-4">Глоссарий терминов:</h5>
+                    <ul>
+                        <li><strong>Лот</strong> — автомобиль, выставленный на продажу на страховом аукционе (например, Copart, IAAI).</li>
+                        <li><strong>Парсинг</strong> — автоматизированный процесс сбора технических характеристик и фото автомобиля со страницы аукциона.</li>
+                        <li><strong>КП</strong> — коммерческое предложение, формируемое для клиента.</li>
+                        <li><strong>Дашборд</strong> — главная панель управления (рабочий стол) со сводной аналитикой.</li>
+                    </ul>
                 </section>
 
                 <section id="requirements">
                     <h3 class="fw-bold">2. Назначение и условия применения</h3>
-                    <p>Приложение представляет собой веб-систему, которая не требует установки на локальный компьютер пользователя. Для корректной работы необходимо соблюдение следующих условий:</p>
+                    <p>Система предназначена для автоматизации сбора данных с аукционов США, точного расчета таможенных и логистических расходов, а также ведения воронки продаж. Приложение разработано для использования на персональных компьютерах.</p>
+                    <h5 class="mt-3">Требования к рабочему месту:</h5>
                     <ul>
-                        <li><strong>Устройство:</strong> Персональный компьютер или ноутбук под управлением ОС Windows, macOS или Linux.</li>
-                        <li><strong>Веб-браузер:</strong> Google Chrome, Mozilla Firefox или Microsoft Edge последних версий.</li>
-                        <li><strong>Подключение:</strong> Стабильное подключение к сети Интернет (для работы модулей парсинга и API НБРБ).</li>
+                        <li><strong>Операционная система:</strong> Windows 10/11, macOS 10.15+, либо современные дистрибутивы Linux.</li>
+                        <li><strong>Веб-браузер:</strong> Google Chrome (рекомендуется), Mozilla Firefox, Microsoft Edge (версии не старше 2022 года).</li>
+                        <li><strong>Разрешение экрана:</strong> Оптимальное отображение при разрешении 1920x1080 (FullHD), минимальное — 1280x720.</li>
+                        <li><strong>Сеть Интернет:</strong> Стабильное широкополосное подключение на скорости не менее 5 Мбит/с для корректной работы парсера и скачивания фотографий в высоком разрешении.</li>
                     </ul>
                 </section>
 
-                <section id="auth">
-                    <h3 class="fw-bold">3. Подготовка к работе (Авторизация)</h3>
-                    <p>В целях безопасности доступ к системе имеют только зарегистрированные сотрудники. Для начала работы необходимо:</p>
-                    <ol>
-                        <li>Ввести адрес системы в адресную строку браузера.</li>
-                        <li>На странице входа ввести персональный <strong>Логин</strong> и <strong>Пароль</strong>, выданные системным администратором.</li>
-                        <li>Нажать кнопку <strong>«Войти»</strong>. В случае успешной проверки учетных данных откроется Рабочий стол (Дашборд).</li>
-                    </ol>
-                </section>
-
-                <section id="operations">
-                    <h3 class="fw-bold mb-4">4. Описание операций</h3>
+                <section id="functions">
+                    <h3 class="fw-bold mb-4">3. Описание основных функций</h3>
                     
-                    <h5 id="op-parser" class="text-primary mt-4">4.1 Парсер и калькулятор авто</h5>
-                    <p>Основной инструмент для работы с лотами. Для расчета стоимости автомобиля необходимо:</p>
+                    <h5 id="func-auth" class="text-primary mt-4">3.1 Запуск и авторизация</h5>
                     <ol>
-                        <li>Перейти в раздел <strong>«Калькулятор авто»</strong>.</li>
-                        <li>Скопировать прямую ссылку на лот с аукциона (например, bid.cars) и вставить ее в поле ввода.</li>
-                        <li>Нажать кнопку <strong>«Спарсить»</strong>. Процесс обхода защиты и загрузки данных занимает от 10 до 30 секунд. Запрещается обновлять или закрывать страницу во время работы парсера.</li>
-                        <li>Изучить полученную информацию (характеристики, фото) и итоговый финансовый расчет, который формируется автоматически с учетом актуальных курсов НБРБ и таможенных пошлин.</li>
+                        <li>Откройте веб-браузер и введите URL-адрес системы в адресную строку.</li>
+                        <li>На появившемся экране авторизации введите ваши учетные данные (Логин и Пароль).</li>
+                        <li>Нажмите кнопку «Войти». Система перенаправит вас на главный Дашборд.</li>
                     </ol>
 
-                    <h5 id="op-crm" class="text-primary mt-4">4.2 Ведение базы клиентов (CRM)</h5>
-                    <p>В разделе <strong>«Клиенты»</strong> менеджер осуществляет ведение своей личной воронки продаж:</p>
+                    <h5 id="func-parser" class="text-primary mt-4">3.2 Парсинг и калькулятор авто</h5>
+                    <p>Скорость обработки одного запроса парсером составляет от 15 до 30 секунд (в зависимости от скорости обхода защиты Cloudflare).</p>
+                    <ol>
+                        <li>Перейдите в раздел <strong>«Калькулятор авто»</strong>.</li>
+                        <li>Вставьте прямую ссылку на лот в текстовое поле и нажмите <strong>«Спарсить»</strong>.</li>
+                        <li>Дождитесь завершения процесса (не закрывайте вкладку). Ознакомьтесь с результатами: характеристиками, галереей фото и итоговым расчетом.</li>
+                    </ol>
+
+                    <h5 id="func-crm" class="text-primary mt-4">3.3 Управление базой данных клиентов</h5>
                     <ul>
-                        <li>Для добавления нового заказчика нажмите кнопку «Добавить клиента» и заполните ФИО и телефон.</li>
-                        <li>Для быстрой навигации по таблице воспользуйтесь поисковой строкой (поиск доступен по имени, телефону или мессенджеру).</li>
-                        <li>Изменение статуса работы с клиентом (Новый, В работе, Завершен, Отказ) доступно непосредственно в выпадающем списке напротив имени клиента без необходимости перехода в режим редактирования.</li>
+                        <li>Для занесения клиента в базу перейдите в раздел <strong>«Клиенты»</strong> и нажмите «Добавить клиента». Ввод телефона строго регламентирован маской ввода.</li>
+                        <li>Для изменения статуса сделки (Новый, В работе, Завершен) используйте выпадающий список прямо в таблице.</li>
+                        <li>Поиск (фильтрация) осуществляется по ФИО, телефону или мессенджеру через панель поиска над таблицей.</li>
                     </ul>
 
-                    <h5 id="op-proposals" class="text-primary mt-4">4.3 Коммерческие предложения</h5>
-                    <p>После получения расчетов в парсере, их можно привязать к конкретному клиенту:</p>
+                    <h5 id="func-pdf" class="text-primary mt-4">3.4 Формирование отчетов (Экспорт в PDF)</h5>
                     <ol>
-                        <li>На странице результатов парсинга нажмите <strong>«Сохранить как Коммерческое предложение»</strong>.</li>
-                        <li>В модальном окне выберите клиента из списка и определите маршрут логистики (Полный, Только море, Без доставки). Сумма пересчитается автоматически.</li>
-                        <li>Перейдите в раздел <strong>«Предложения»</strong>.</li>
-                        <li>Нажмите кнопку <strong>«Скачать PDF»</strong> (иконка документа в списке предложений). Система автоматически сгенерирует готовый файл с фото и детализацией цены для отправки заказчику.</li>
+                        <li>На странице результатов парсера нажмите <strong>«Сохранить как Коммерческое предложение»</strong>.</li>
+                        <li>Выберите маршрут логистики и привяжите расчет к клиенту.</li>
+                        <li>Перейдите в раздел <strong>«Предложения»</strong> и нажмите кнопку <strong>«📄 Скачать PDF»</strong>. Система сгенерирует документ формата А4, готовый к отправке заказчику.</li>
                     </ol>
 
-                    <h5 id="op-admin" class="text-danger mt-4">4.4 Функции администратора (Только для роли Admin)</h5>
-                    <p>Сотрудник с ролью «Администратор» имеет расширенные права:</p>
+                    <h5 id="func-admin" class="text-danger mt-4">3.5 Управление системой (Для Администратора)</h5>
                     <ul>
-                        <li><strong>Тарифы:</strong> Изменение базовой стоимости доставки (США, Море, Европа) и аукционного сбора. Для автоматического обновления курсов валют с Нацбанка РБ нажмите кнопку «Получить с НБРБ».</li>
-                        <li><strong>Сотрудники:</strong> Добавление новых менеджеров, смена паролей и управление ролями.</li>
-                        <li><strong>Аналитика:</strong> Просмотр графиков конверсии, статистики популярности авто и эффективности всех менеджеров.</li>
+                        <li><strong>Тарифы и курсы:</strong> Изменение базовых ставок доставки. Поддерживается автоматическая синхронизация курсов валют (USD, EUR) по кнопке «Получить с НБРБ».</li>
+                        <li><strong>Сотрудники:</strong> Регистрация новых менеджеров, блокировка старых учеток и принудительная смена паролей.</li>
+                    </ul>
+                </section>
+
+                <section id="emergency">
+                    <h3 class="fw-bold">4. Аварийные ситуации</h3>
+                    <p>При возникновении нештатных ситуаций пользователю необходимо придерживаться следующих алгоритмов восстановления:</p>
+                    <ul>
+                        <li><strong>Потеря интернет-соединения во время парсинга:</strong> Процесс завершится с ошибкой (красное уведомление). Восстановите подключение, обновите страницу (F5) и отправьте ссылку на парсинг повторно.</li>
+                        <li><strong>Блокировка сервером аукциона:</strong> Если система выдает ошибку <em>«Браузер был закрыт или произошел сбой»</em>, это означает, что защита аукциона принудительно разорвала сессию. Рекомендуется подождать 2-3 минуты и повторить попытку.</li>
+                        <li><strong>Сбой генерации PDF:</strong> Если при нажатии кнопки скачивания PDF возникает ошибка сервера (Код 500), убедитесь, что в карточке сохраненного автомобиля присутствуют все необходимые данные. Если проблема сохраняется, обратитесь к системному администратору.</li>
                     </ul>
                 </section>
 
                 <section id="messages">
                     <h3 class="fw-bold">5. Сообщения оператору</h3>
-                    <p>Система активно взаимодействует с пользователем через цветовые всплывающие уведомления (алерты):</p>
-                    <table class="table table-bordered">
+                    <p>Диагностика действий осуществляется через цветовую систему уведомлений:</p>
+                    <table class="table table-bordered align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th style="width: 20%;">Тип уведомления</th>
-                                <th>Значение и действия</th>
+                                <th style="width: 20%;">Тип</th>
+                                <th>Пример сообщения и ваши действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td><span class="badge bg-success w-100 py-2 text-white">Зеленое (Успех)</span></td>
-                                <td>Операция выполнена корректно (клиент добавлен, предложение сохранено, курсы обновлены). Дополнительных действий не требуется.</td>
+                                <td><span class="badge bg-success w-100 py-2 fs-6">Успех</span></td>
+                                <td><em>«Коммерческое предложение успешно создано»</em> — транзакция завершена.</td>
                             </tr>
                             <tr>
-                                <td><span class="badge bg-warning w-100 py-2 text-dark">Желтое (Внимание)</span></td>
-                                <td>Предупреждающая информация. Например, «У вас нет прав для изменения этого предложения» (если менеджер пытается удалить чужое предложение).</td>
+                                <td><span class="badge bg-warning w-100 py-2 text-dark fs-6">Предупреждение</span></td>
+                                <td><em>«У вас нет прав для изменения этого предложения»</em> — отказ в доступе согласно ролевой модели. Действие отменено.</td>
                             </tr>
                             <tr>
-                                <td><span class="badge bg-danger w-100 py-2 text-white">Красное (Ошибка)</span></td>
-                                <td>Критическая ошибка, требующая вмешательства. Примеры: неверный пароль; обрыв соединения при парсинге; отсутствие интернета при попытке обратиться к НБРБ. В случае ошибки парсинга следует убедиться в правильности ссылки и повторить попытку через 1-2 минуты.</td>
+                                <td><span class="badge bg-danger w-100 py-2 fs-6">Ошибка</span></td>
+                                <td><em>«Неверный логин или пароль»</em> / <em>«Ошибка базы данных»</em> — критическое прерывание. Проверьте вводимые данные.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -165,27 +164,19 @@
     </div>
 </div>
 
-<!-- Скрипт для подсветки активного пункта в боковом меню при скролле (Scrollspy) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const sections = document.querySelectorAll('section');
         const navLinks = document.querySelectorAll('.sidebar .nav-link');
-
         window.addEventListener('scroll', () => {
             let current = '';
             sections.forEach(section => {
-                const sectionTop = section.offsetTop;
-                if (pageYOffset >= sectionTop - 100) {
-                    current = section.getAttribute('id');
-                }
+                if (pageYOffset >= section.offsetTop - 100) current = section.getAttribute('id');
             });
-
             navLinks.forEach(link => {
                 link.classList.remove('active');
-                if (link.getAttribute('href').includes(current) && current !== '') {
-                    link.classList.add('active');
-                }
+                if (link.getAttribute('href').includes(current) && current !== '') link.classList.add('active');
             });
         });
     });
