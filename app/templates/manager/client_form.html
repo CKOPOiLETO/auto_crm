@@ -23,6 +23,10 @@
                                placeholder="+375 (XX) XXX-XX-XX" required>
                         <div class="form-text">Обязательный формат: +375 (XX) XXX-XX-XX</div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">E-mail</label>
+                        <input type="email" name="email" class="form-control" value="{{ client.email if client else '' }}" placeholder="example@mail.com">
+                    </div>
                     
                     <div class="mb-3">
                         <label class="form-label text-muted fw-bold">Мессенджер</label>

@@ -20,6 +20,8 @@ from selenium.common.exceptions import WebDriverException, NoSuchWindowException
 from app.services.browser import create_driver
 from app.services.bidcars_parser import BidCarsParser
 from app.routes.parser import _fetch_bidcars_image_bytes
+from app.services.email_sender import send_proposal_email
+
 
 
 
@@ -27,7 +29,57 @@ from app.routes.parser import _fetch_bidcars_image_bytes
 # Создаем Blueprint для менеджера с префиксом /manager
 manager_bp = Blueprint('manager', __name__, url_prefix='/manager', template_folder='../templates/manager')
 
+def create_pdf_bytes(proposal):
+    """Общая функция генерации PDF для скачивания и отправки на почту"""
+    calculator = AutoCalculator()
+    calc_result = calculator.calculate_all(
+        price_usd=float(proposal.car.price_usd),
+        engine_volume=proposal.car.engine_volume,
+        year=proposal.car.manufacture_year,
+        custom_shipping=float(proposal.shipping_cost)
+    )
 
+    def _static_url_to_file_url(static_url: str) -> str | None:
+        if not static_url or not isinstance(static_url, str): return None
+        if not static_url.startswith('/static/'): return None
+        rel = static_url[len('/static/'):].lstrip('/\\')
+        app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        static_dir = os.path.join(app_dir, 'static')
+        abs_path = os.path.abspath(os.path.join(static_dir, rel))
+        if not os.path.exists(abs_path): return None
+        return 'file:///' + abs_path.replace('\\', '/')
+
+    def _to_pdf_img_src(u: str) -> str | None:
+        if not u: return None
+        if isinstance(u, str) and u.startswith('/static/'): return _static_url_to_file_url(u)
+        if isinstance(u, str) and (u.startswith('http://') or u.startswith('https://')): return u
+        return None
+
+    main_photo_pdf = _to_pdf_img_src(proposal.car.photo_url)
+    gallery_pdf = []
+    if proposal.car.gallery_urls:
+        for u in proposal.car.gallery_urls:
+            src = _to_pdf_img_src(u)
+            if src: gallery_pdf.append(src)
+
+    # Рендерим HTML с фото
+    rendered_html = render_template(
+        'manager/proposal_pdf.html', 
+        proposal=proposal, 
+        calc=calc_result,
+        main_photo_pdf=main_photo_pdf,
+        gallery_pdf=gallery_pdf
+    )
+    
+    path_wkhtmltopdf = r'C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe'
+    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+    options = {
+        'page-size': 'A4', 'margin-top': '0.75in', 'margin-right': '0.75in',
+        'margin-bottom': '0.75in', 'margin-left': '0.75in', 'encoding': "UTF-8",
+        'no-outline': None, 'enable-local-file-access': None, 'quiet': ''
+    }
+    
+    return pdfkit.from_string(rendered_html, False, configuration=config, options=options)
 
 @manager_bp.route('/clients')
 @login_required
@@ -61,6 +113,7 @@ def add_client():
         fio = request.form.get('fio')
         phone = request.form.get('phone')
         messenger = request.form.get('messenger')
+        email = request.form.get('email')
         
         # --- НОВАЯ ПРОВЕРКА ПО РЕГУЛЯРНОМУ ВЫРАЖЕНИЮ ---
         if not re.fullmatch(r'^\+375 \(\d{2}\) \d{3}-\d{2}-\d{2}$', phone):
@@ -72,7 +125,9 @@ def add_client():
             fio=fio,
             phone=phone,
             messenger=messenger,
-            manager_id=current_user.id
+            manager_id=current_user.id,
+            email = email
+
         )
         db.session.add(new_client)
         db.session.commit()
@@ -96,7 +151,7 @@ def edit_client(client_id):
         
         # --- ТАКАЯ ЖЕ ПРОВЕРКА ДЛЯ РЕДАКТИРОВАНИЯ ---
         if not re.fullmatch(r'^\+375 \(\d{2}\) \d{3}-\d{2}-\d{2}$', phone):
-            flash('Ошибка: Введите корректный белорусский номер!', 'danger')
+            flash('Ошибка: Введите корректный беларуский номер!', 'danger')
             return redirect(request.url)
         # --------------------------------------------
 
@@ -104,6 +159,7 @@ def edit_client(client_id):
         client.phone = phone
         client.messenger = request.form.get('messenger')
         client.status = request.form.get('status')
+        client.email = request.form.get('email')
         db.session.commit()
         flash('Данные клиента обновлены!', 'info')
         return redirect(url_for('manager.list_clients'))
@@ -180,88 +236,18 @@ def list_proposals():
 @manager_bp.route('/proposals/pdf/<int:proposal_id>')
 @login_required
 def generate_proposal_pdf(proposal_id):
-    proposal = Proposal.query.options(
-        db.joinedload(Proposal.client),
-        db.joinedload(Proposal.car)
-    ).get_or_404(proposal_id)
+    proposal = Proposal.query.options(db.joinedload(Proposal.client), db.joinedload(Proposal.car)).get_or_404(proposal_id)
     
-    calculator = AutoCalculator()
-    calc_result = calculator.calculate_all(
-        price_usd=float(proposal.car.price_usd),
-        engine_volume=proposal.car.engine_volume,
-        year=proposal.car.manufacture_year,
-        custom_shipping=float(proposal.shipping_cost)
-    )
-
-    def _static_url_to_file_url(static_url: str) -> str | None:
-        """Преобразует /static/... в file:///... для wkhtmltopdf (Windows)."""
-        if not static_url or not isinstance(static_url, str):
-            return None
-        if not static_url.startswith('/static/'):
-            return None
-        rel = static_url[len('/static/'):].lstrip('/\\')
-        app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        static_dir = os.path.join(app_dir, 'static')
-        abs_path = os.path.abspath(os.path.join(static_dir, rel))
-        if not os.path.exists(abs_path):
-            return None
-        # file:///C:/... (важно: слэши)
-        return 'file:///' + abs_path.replace('\\', '/')
-
-    def _to_pdf_img_src(u: str) -> str | None:
-        """Если фото локальное (/static/...), отдаём file:///. Иначе пробуем как есть (http/https)."""
-        if not u:
-            return None
-        if isinstance(u, str) and u.startswith('/static/'):
-            return _static_url_to_file_url(u)
-        if isinstance(u, str) and (u.startswith('http://') or u.startswith('https://')):
-            return u
-        return None
-
-    main_photo_pdf = _to_pdf_img_src(proposal.car.photo_url)
-    gallery_pdf: list[str] = []
-    if proposal.car.gallery_urls:
-        for u in proposal.car.gallery_urls:
-            src = _to_pdf_img_src(u)
-            if src:
-                gallery_pdf.append(src)
-
-    # Генерируем HTML + передаём переменные для фото (wkhtmltopdf читает file:///... с enable-local-file-access)
-    rendered_html = render_template(
-        'manager/proposal_pdf.html', 
-        proposal=proposal, 
-        calc=calc_result,
-        main_photo_pdf=main_photo_pdf,
-        gallery_pdf=gallery_pdf
-    )
+    # Используем нашу общую функцию!
+    pdf_bytes = create_pdf_bytes(proposal)
     
-    # --- Остальной код генерации PDF остается прежним ---
-    path_wkhtmltopdf = r'C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe'
-    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
-    
-    options = {
-        'page-size': 'A4',
-        'margin-top': '0.75in',
-        'margin-right': '0.75in',
-        'margin-bottom': '0.75in',
-        'margin-left': '0.75in',
-        'encoding': "UTF-8",
-        'no-outline': None,
-        'enable-local-file-access': None
-    }
-    
-    pdf_bytes = pdfkit.from_string(rendered_html, False, configuration=config, options=options)
-    
-    filename = f"Proposal_{proposal.id}.pdf"
     from urllib.parse import quote
-    encoded_filename = quote(filename)
+    filename = f"Proposal_{proposal.id}.pdf"
     
     return Response(
-        pdf_bytes,
-        mimetype="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        pdf_bytes, mimetype="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"}
     )
-
 
 # --- ИЗМЕНЕНИЕ СТАТУСА ПРЕДЛОЖЕНИЯ ---
 @manager_bp.route('/proposals/status/<int:proposal_id>', methods=['POST'])
@@ -485,3 +471,40 @@ def export_history_pdf():
         return Response(pdf_bytes, mimetype="application/pdf", headers={"Content-Disposition": "attachment; filename=History_Report.pdf"})
     except Exception as e:
         return f"Ошибка генерации отчета: {e}", 500
+    
+
+
+
+    # --- РОУТ ОТПРАВКИ ПИСЬМА И ТРИГГЕРОВ ---
+@manager_bp.route('/proposals/send_email/<int:proposal_id>', methods=['POST'])
+@login_required
+def send_proposal_to_client(proposal_id):
+    try:
+        proposal = Proposal.query.get_or_404(proposal_id)
+        
+        if not proposal.client.email:
+            flash('У этого клиента не заполнен E-mail.', 'danger')
+            return redirect(url_for('manager.list_proposals'))
+
+        # Используем ту же самую функцию (теперь фото будут и в письме!)
+        pdf_bytes = create_pdf_bytes(proposal)
+        filename = f"AutoCapital_Proposal_{proposal.id}.pdf"
+
+        # Отправляем письмо
+        from app.services.email_sender import send_proposal_email
+        send_proposal_email(proposal.client.email, proposal.client.fio, pdf_bytes, filename)
+
+        # ТРИГГЕРЫ СТАТУСОВ
+        proposal.status = 'sent'
+        if proposal.client.status == 'new':
+            proposal.client.status = 'in_progress'
+            
+        db.session.commit()
+        flash(f'КП успешно отправлено на почту {proposal.client.email}!', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка отправки письма: {e}', 'danger')
+        print(f"[-] Email Error: {e}")
+
+    return redirect(url_for('manager.list_proposals'))

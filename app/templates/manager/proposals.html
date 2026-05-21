@@ -80,6 +80,9 @@
                         </td>
                         <td class="pe-4 proposals-actions">
                             <a href="{{ url_for('manager.generate_proposal_pdf', proposal_id=p.id) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Скачать PDF">📄</a>
+                            <form action="{{ url_for('manager.send_proposal_to_client', proposal_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Сгенерировать PDF и отправить клиенту на почту?');">
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Отправить на Email">📧</button>
+                            </form>
                             <form action="{{ url_for('manager.delete_proposal', proposal_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить это коммерческое предложение?');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">🗑️</button>
                             </form>

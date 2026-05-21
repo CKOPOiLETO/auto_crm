@@ -10,6 +10,7 @@ class Client(db.Model):
     fio = db.Column(db.String(150), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
     messenger = db.Column(db.String(50))
+    email = db.Column(db.String(150))
     status = db.Column(db.String(50), default='new')
     created_at = db.Column(db.TIMESTAMP, default=datetime.utcnow)
     
