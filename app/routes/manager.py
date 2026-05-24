@@ -125,6 +125,7 @@ def add_client():
         fio = request.form.get('fio')
         phone = request.form.get('phone')
         messenger = request.form.get('messenger')
+        messenger_type = request.form.get('messenger_type')
         email = request.form.get('email')
         
         if not re.fullmatch(r'^\+375 \(\d{2}\) \d{3}-\d{2}-\d{2}$', phone):
@@ -143,6 +144,7 @@ def add_client():
             phone=phone,
             messenger=messenger,
             manager_id=assigned_manager_id,
+            messenger_type=messenger_type,
             email = email
         )
         db.session.add(new_client)
@@ -176,6 +178,7 @@ def edit_client(client_id):
         client.phone = phone
         client.messenger = request.form.get('messenger')
         client.status = request.form.get('status')
+        client.messenger_type = request.form.get('messenger_type')
         client.email = request.form.get('email')
         
         # Если это админ, обновляем менеджера
@@ -242,19 +245,52 @@ def list_proposals():
 
     # 6. Выполняем итоговый запрос
     proposals = query.all()
+    if current_user.role == 'admin':
+        my_clients = Client.query.order_by(Client.fio).all()
+    else:
+        my_clients = Client.query.filter_by(manager_id=current_user.id).order_by(Client.fio).all()
     
     # Передаем параметры поиска и сортировки обратно в шаблон, чтобы он "помнил" выбор
-    return render_template('proposals.html', 
-                           proposals=proposals, 
-                           q=q, 
-                           sort_by=sort_by, 
-                           order=order)
+    return render_template('manager/proposals.html', proposals=proposals, q=q, 
+                           sort_by=sort_by, order=order, my_clients=my_clients)
 
 
 
 
-# app/routes/manager.py
+@manager_bp.route('/proposals/clone/<int:proposal_id>', methods=['POST'])
+@login_required
+def clone_proposal(proposal_id):
+    old_proposal = Proposal.query.get_or_404(proposal_id)
+    
+    # Защита прав
+    if current_user.role != 'admin' and old_proposal.client.manager_id != current_user.id:
+        flash('У вас нет доступа к этому предложению.', 'danger')
+        return redirect(url_for('manager.list_proposals'))
+        
+    new_client_id = request.form.get('new_client_id')
+    if not new_client_id:
+        flash('Клиент не выбран!', 'warning')
+        return redirect(url_for('manager.list_proposals'))
 
+    try:
+        # Создаем точную копию предложения, но для нового клиента
+        new_proposal = Proposal(
+            client_id=new_client_id,
+            car_id=old_proposal.car_id,
+            shipping_cost=old_proposal.shipping_cost,
+            customs_fee=old_proposal.customs_fee,
+            total_price_byn=old_proposal.total_price_byn,
+            total_price_usd=old_proposal.total_price_usd,
+            status='draft' # Новая копия всегда "Черновик"
+        )
+        db.session.add(new_proposal)
+        db.session.commit()
+        flash('Предложение успешно скопировано для нового клиента! Теперь вы можете отправить ему письмо.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при дублировании: {e}', 'danger')
+
+    return redirect(url_for('manager.list_proposals'))
 # --- НОВЫЙ РОУТ-ГЕНЕРАТОР PDF ---
 @manager_bp.route('/proposals/pdf/<int:proposal_id>')
 @login_required

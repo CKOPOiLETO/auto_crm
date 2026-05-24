@@ -83,11 +83,17 @@
                             <form action="{{ url_for('manager.send_proposal_to_client', proposal_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Сгенерировать PDF и отправить клиенту на почту?');">
                                 <button type="submit" class="btn btn-sm btn-outline-primary" title="Отправить на Email">📧</button>
                             </form>
+                            <button type="button" class="btn btn-sm btn-outline-warning" title="Переслать другому клиенту"
+                                    onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('cloneModal{{ p.id }}')).show()">
+                                ↪️
+                            </button>
                             <form action="{{ url_for('manager.delete_proposal', proposal_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить это коммерческое предложение?');">
+
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">🗑️</button>
                             </form>
                         </td>
                     </tr>
+                    
                     {% else %}
                     <tr>
                         <td colspan="6" class="text-center text-muted py-5">
@@ -103,5 +109,46 @@
             </table>
         </div>
     </div>
-</div>
-{% endblock %}
+    {% for p in proposals %}
+    <div class="modal fade" id="cloneModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title text-dark">↪️ Переслать предложение</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url_for('manager.clone_proposal', proposal_id=p.id) }}" method="POST">
+                    <div class="modal-body">
+                        <p>Создать копию расчета на <strong>{{ p.car.title }}</strong> (${{ p.total_price_usd }}) для другого клиента?</p>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Выберите получателя:</label>
+                            <select class="form-select" name="new_client_id" required>
+                                <option value="" disabled selected>-- Выберите клиента --</option>
+                                {% for c in my_clients %}
+                                    {% if c.id != p.client_id %}
+                                        <option value="{{ c.id }}">{{ c.fio }} ({{ c.phone }})</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-warning fw-bold text-dark">Создать копию</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    <!-- КОНЕЦ ЦИКЛА МОДАЛЬНЫХ ОКОН -->
+
+    <!-- Кнопка "Назад" -->
+    <div class="text-center mt-4">
+        <a href="/manager/clients" class="btn btn-secondary">Вернуться к списку клиентов</a>
+    </div>
+
+</div> <!-- Конец py-4 -->
+{% endblock %} <!-- ЗДЕСЬ ЗАКРЫВАЕТСЯ КОНТЕНТ -->
+
+

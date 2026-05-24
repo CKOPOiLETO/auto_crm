@@ -29,8 +29,15 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label text-muted fw-bold">Мессенджер</label>
-                        <input type="text" name="messenger" class="form-control" value="{{ client.messenger if client else '' }}" placeholder="Telegram, Viber, WhatsApp...">
+                        <label class="form-label text-muted fw-bold">Мессенджер (для быстрой связи)</label>
+                        <div class="input-group">
+                            <select name="messenger_type" class="form-select" style="max-width: 130px;">
+                                <option value="telegram" {% if client and client.messenger_type == 'telegram' %}selected{% endif %}>Telegram</option>
+                                <option value="whatsapp" {% if client and client.messenger_type == 'whatsapp' %}selected{% endif %}>WhatsApp</option>
+                                <option value="viber" {% if client and client.messenger_type == 'viber' %}selected{% endif %}>Viber</option>
+                            </select>
+                            <input type="text" name="messenger" class="form-control" value="{{ client.messenger if client else '' }}" placeholder="@username или номер">
+                        </div>
                     </div>
                     
                     {% if client %}

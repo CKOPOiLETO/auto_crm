@@ -57,7 +57,24 @@
                     <tr>
                         <td>{{ client.fio }}</td>
                         <td>{{ client.phone }}</td>
-                        <td>{{ client.messenger }}</td>
+                        <td>
+                            {% if client.messenger %}
+                                <!-- Очищаем номер от лишних символов для WhatsApp и Viber -->
+                                {% set clean_msg = client.messenger|replace(' ', '')|replace('+', '')|replace('-', '')|replace('(', '')|replace(')', '') %}
+                                
+                                {% if client.messenger_type == 'telegram' %}
+                                    <a href="https://t.me/{{ client.messenger|replace('@', '') }}" target="_blank" class="btn btn-sm btn-info text-white shadow-sm w-100">Telegram</a>
+                                {% elif client.messenger_type == 'whatsapp' %}
+                                    <a href="https://wa.me/{{ clean_msg }}" target="_blank" class="btn btn-sm btn-success text-white shadow-sm w-100">WhatsApp</a>
+                                {% elif client.messenger_type == 'viber' %}
+                                    <a href="viber://chat?number={{ clean_msg }}" target="_blank" class="btn btn-sm btn-primary text-white shadow-sm w-100">Viber</a>
+                                {% else %}
+                                    {{ client.messenger }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <form action="{{ url_for('manager.update_client_status', client_id=client.id) }}" method="POST">
                                 <select name="status" class="form-select form-select-sm shadow-sm

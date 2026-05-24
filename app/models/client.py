@@ -11,6 +11,7 @@ class Client(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     messenger = db.Column(db.String(50))
     email = db.Column(db.String(150))
+    messenger_type = db.Column(db.String(20), default='telegram')
     status = db.Column(db.String(50), default='new')
     created_at = db.Column(db.TIMESTAMP, default=datetime.utcnow)
     
