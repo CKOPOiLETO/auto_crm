@@ -44,6 +44,20 @@
                         </select>
                     </div>
                     {% endif %}
+                    {% if current_user.role == 'admin' %}
+                    <div class="mb-4 p-3 border border-danger rounded bg-light">
+                        <label class="form-label text-danger fw-bold">⚙️ [Админ] Ответственный сотрудник</label>
+                        <select name="manager_id" class="form-select border-danger">
+                            {% for m in managers %}
+                                <option value="{{ m.id }}" 
+                                    {% if client and client.manager_id == m.id %}selected{% elif not client and current_user.id == m.id %}selected{% endif %}>
+                                    {{ m.full_name }} ({{ m.role }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text text-muted">При смене сотрудника к нему автоматически перейдут все коммерческие предложения данного клиента.</div>
+                    </div>
+                    {% endif %}
                     
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary btn-lg">{{ 'Сохранить изменения' if client else 'Добавить клиента' }}</button>

@@ -92,19 +92,42 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     {% if status_labels and status_data %}
-    // График статусов (Круговой)
-    const ctxStatus = document.getElementById('statusChart').getContext('2d');
-    new Chart(ctxStatus, {
-        type: 'pie',
-        data: {
-            labels: {{ status_labels | tojson }},
-            datasets:[{
-                data: {{ status_data | tojson }},
-                backgroundColor:['#f8f9fa', '#0d6efd', '#198754', '#dc3545']
-            }]
-        }
-    });
-    {% endif %}
+        // График статусов (Круговой)
+        const ctxStatus = document.getElementById('statusChart').getContext('2d');
+        
+        // 1. Получаем оригинальные статусы из базы данных
+        const rawLabels = {{ status_labels | tojson }};
+        
+        // 2. Создаем словари для перевода и закрепления цветов
+        const statusMap = {
+            'draft': 'Черновик',
+            'sent': 'Отправлено',
+            'accepted': 'Принято',
+            'rejected': 'Отказ'
+        };
+        
+        const colorMap = {
+            'draft': '#adb5bd',    // Серый
+            'sent': '#0d6efd',     // Синий
+            'accepted': '#198754', // Зеленый
+            'rejected': '#dc3545'  // Красный
+        };
+        
+        // 3. Формируем новые массивы переведенных названий и правильных цветов
+        const translatedLabels = rawLabels.map(status => statusMap[status] || status);
+        const dynamicColors = rawLabels.map(status => colorMap[status] || '#cccccc');
+
+        new Chart(ctxStatus, {
+            type: 'pie',
+            data: {
+                labels: translatedLabels, // Подставляем русские названия
+                datasets:[{
+                    data: {{ status_data | tojson }},
+                    backgroundColor: dynamicColors // Подставляем правильные цвета
+                }]
+            }
+        });
+        {% endif %}
 
     // График конверсии (Столбчатый)
     const ctxConv = document.getElementById('conversionChart').getContext('2d');

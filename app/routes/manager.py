@@ -21,6 +21,7 @@ from app.services.browser import create_driver
 from app.services.bidcars_parser import BidCarsParser
 from app.routes.parser import _fetch_bidcars_image_bytes
 from app.services.email_sender import send_proposal_email
+from app.models.user import User 
 
 
 
@@ -84,18 +85,26 @@ def create_pdf_bytes(proposal):
 @manager_bp.route('/clients')
 @login_required
 def list_clients():
-    q = request.args.get('q', '') # Получаем запрос
+    q = request.args.get('q', '')
+    manager_filter = request.args.get('manager_id', '') # Новый параметр фильтра
     
-    # Базовый запрос
     query = Client.query
     
-    # Ограничение по ролям: менеджер видит только своих
-    if current_user.role != 'admin':
+    # Админу достаем список всех менеджеров для выпадающего списка
+    all_managers = []
+    
+    if current_user.role == 'admin':
+        all_managers = User.query.all()
+        # Если админ выбрал фильтр по менеджеру:
+        if manager_filter:
+            query = query.filter(Client.manager_id == int(manager_filter))
+    else:
+        # Обычный менеджер видит только своих
         query = query.filter(Client.manager_id == current_user.id)
     
-    # Если есть поиск
     if q:
         term = f"%{q}%"
+        from sqlalchemy import or_
         query = query.filter(or_(
             Client.fio.ilike(term),
             Client.phone.ilike(term),
@@ -103,38 +112,45 @@ def list_clients():
         ))
         
     clients = query.order_by(Client.created_at.desc()).all()
-    return render_template('clients.html', clients=clients, q=q)
+    return render_template('clients.html', clients=clients, q=q, all_managers=all_managers, manager_filter=manager_filter)
 
-# При добавлении клиента - привязываем его к текущему менеджеру
+
 @manager_bp.route('/clients/add', methods=['GET', 'POST'])
 @login_required
 def add_client():
+    # Админу передаем список всех сотрудников для возможности выбора
+    managers = User.query.order_by(User.full_name).all() if current_user.role == 'admin' else []
+
     if request.method == 'POST':
         fio = request.form.get('fio')
         phone = request.form.get('phone')
         messenger = request.form.get('messenger')
         email = request.form.get('email')
         
-        # --- НОВАЯ ПРОВЕРКА ПО РЕГУЛЯРНОМУ ВЫРАЖЕНИЮ ---
         if not re.fullmatch(r'^\+375 \(\d{2}\) \d{3}-\d{2}-\d{2}$', phone):
             flash('Ошибка: Введите корректный белорусский номер!', 'danger')
             return redirect(request.url)
-        # -----------------------------------------------
+
+        # Определяем, за кем закрепить клиента
+        assigned_manager_id = current_user.id
+        if current_user.role == 'admin':
+            selected_manager = request.form.get('manager_id')
+            if selected_manager:
+                assigned_manager_id = int(selected_manager)
 
         new_client = Client(
             fio=fio,
             phone=phone,
             messenger=messenger,
-            manager_id=current_user.id,
+            manager_id=assigned_manager_id,
             email = email
-
         )
         db.session.add(new_client)
         db.session.commit()
         flash('Новый клиент успешно добавлен!', 'success')
         return redirect(url_for('manager.list_clients'))
 
-    return render_template('manager/client_form.html', title="Добавить нового клиента")
+    return render_template('manager/client_form.html', title="Добавить нового клиента", managers=managers)
 
 
 @manager_bp.route('/clients/edit/<int:client_id>', methods=['GET', 'POST'])
@@ -146,26 +162,33 @@ def edit_client(client_id):
         flash('Нет доступа.', 'danger')
         return redirect(url_for('manager.list_clients'))
 
+    # Админу передаем список всех сотрудников для переназначения
+    managers = User.query.order_by(User.full_name).all() if current_user.role == 'admin' else []
+
     if request.method == 'POST':
         phone = request.form.get('phone')
         
-        # --- ТАКАЯ ЖЕ ПРОВЕРКА ДЛЯ РЕДАКТИРОВАНИЯ ---
         if not re.fullmatch(r'^\+375 \(\d{2}\) \d{3}-\d{2}-\d{2}$', phone):
-            flash('Ошибка: Введите корректный беларуский номер!', 'danger')
+            flash('Ошибка: Введите корректный белорусский номер!', 'danger')
             return redirect(request.url)
-        # --------------------------------------------
 
         client.fio = request.form.get('fio')
         client.phone = phone
         client.messenger = request.form.get('messenger')
         client.status = request.form.get('status')
         client.email = request.form.get('email')
+        
+        # Если это админ, обновляем менеджера
+        if current_user.role == 'admin':
+            new_manager_id = request.form.get('manager_id')
+            if new_manager_id:
+                client.manager_id = int(new_manager_id)
+
         db.session.commit()
         flash('Данные клиента обновлены!', 'info')
         return redirect(url_for('manager.list_clients'))
 
-    return render_template('manager/client_form.html', title="Редактировать клиента", client=client)
-
+    return render_template('manager/client_form.html', title="Редактировать клиента", client=client, managers=managers)
 # 4. Удаление клиента (Delete)
 @manager_bp.route('/clients/delete/<int:client_id>', methods=['POST'])
 @login_required
@@ -508,3 +531,8 @@ def send_proposal_to_client(proposal_id):
         print(f"[-] Email Error: {e}")
 
     return redirect(url_for('manager.list_proposals'))
+
+
+
+
+

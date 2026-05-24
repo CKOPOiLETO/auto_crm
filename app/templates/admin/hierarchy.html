@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Структура отдела продаж{% endblock %}
+
+{% block content %}
+<style>
+    /* Скрываем стандартный треугольник браузера */
+    summary { list-style: none; outline: none; }
+    summary::-webkit-details-marker { display: none; }
+    /* Рисуем свои галочки, которые сами переворачиваются при открытии */
+    summary::after { content: '▼'; float: right; color: #6c757d; font-size: 0.9em; transition: 0.2s; }
+    details[open] > summary::after { transform: rotate(180deg); }
+    /* Плавное открытие (работает в Chrome) */
+    details[open] summary ~ * { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<div class="py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold m-0">Структура отдела продаж</h2>
+        <p class="text-muted m-0">Иерархия: Менеджеры ➔ Клиенты ➔ Сделки</p>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            {% for user in users %}
+            <!-- УРОВЕНЬ 1: МЕНЕДЖЕР (БЕЗ JAVASCRIPT) -->
+            <details class="border-bottom">
+                <summary class="p-3 bg-light fw-bold fs-5 d-flex align-items-center" style="cursor: pointer;">
+                    {{ user.full_name }} 
+                    <span class="badge bg-primary ms-3">{{ user.clients|length }} клиентов</span>
+                    {% if user.role == 'admin' %}<span class="badge bg-danger ms-2">Админ</span>{% endif %}
+                </summary>
+                
+                <div class="p-4 bg-white">
+                    {% if user.clients %}
+                        {% for client in user.clients %}
+                        <!-- УРОВЕНЬ 2: КЛИЕНТ -->
+                        <details class="mb-2 border rounded">
+                            <summary class="p-3 bg-light text-secondary fw-bold d-flex align-items-center" style="cursor: pointer;">
+                                {{ client.fio }} ({{ client.phone }})
+                                <span class="badge bg-secondary ms-auto me-3">{{ client.status }}</span>
+                                <span class="badge bg-success">{{ client.proposals|length }} КП</span>
+                            </summary>
+                            
+                            <div class="p-3 bg-white">
+                                {% if client.proposals %}
+                                <!-- УРОВЕНЬ 3: ПРЕДЛОЖЕНИЯ КЛИЕНТА -->
+                                <table class="table table-sm table-hover mb-0 shadow-sm rounded">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <!-- <th class="ps-3">ID</th> -->
+                                            <th>Автомобиль</th>
+                                            <th>Сумма ($)</th>
+                                            <th>Статус</th>
+                                            <th class="pe-3">Действие</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for p in client.proposals %}
+                                        <tr>
+                                            <!-- <td class="text-muted ps-3">#{{ p.id }}</td> -->
+                                            <td class="fw-bold">{{ p.car.title }}</td>
+                                            <td class="text-success fw-bold">${{ p.total_price_usd }}</td>
+                                            <td><span class="badge bg-info">{{ p.status }}</span></td>
+                                            <td class="pe-3">
+                                                <a href="{{ url_for('manager.generate_proposal_pdf', proposal_id=p.id) }}" class="btn btn-sm btn-outline-danger" target="_blank" title="Скачать PDF">📄 PDF</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <div class="text-muted small">У этого клиента пока нет расчетов.</div>
+                                {% endif %}
+                            </div>
+                        </details>
+                        {% endfor %}
+                    {% else %}
+                    <div class="alert alert-light text-muted mb-0 border">У этого сотрудника пока нет клиентов.</div>
+                    {% endif %}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -23,6 +23,14 @@
             <form method="GET">
                 <div class="input-group">
                     <input type="text" name="q" class="form-control" placeholder="Поиск по ФИО, телефону или мессенджеру..." value="{{ q or '' }}">
+                    {% if current_user.role == 'admin' %}
+                <select name="manager_id" class="form-select" style="max-width: 250px;">
+                    <option value="">Все менеджеры</option>
+                    {% for m in all_managers %}
+                        <option value="{{ m.id }}" {% if manager_filter == m.id|string %}selected{% endif %}>{{ m.full_name }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
                     <button class="btn btn-outline-primary" type="submit">Найти</button>
                     {% if q %}
                     <a href="{{ url_for('manager.list_clients') }}" class="btn btn-outline-danger">Сбросить</a>

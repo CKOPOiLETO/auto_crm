@@ -248,3 +248,23 @@ def analytics():
                            manager_stats=manager_stats,
                            status_date_from=status_date_from,
                            status_date_to=status_date_to)
+
+
+
+
+
+
+@admin_bp.route('/hierarchy')
+@login_required
+@admin_required
+def hierarchy():
+    """Древовидная структура: Менеджеры -> Их Клиенты -> Их Предложения"""
+    
+    # Вытягиваем всех пользователей вместе со всеми их клиентами, предложениями и авто
+    users = User.query.options(
+        db.joinedload(User.clients)
+          .joinedload(Client.proposals)
+          .joinedload(Proposal.car)
+    ).order_by(User.full_name).all()
+    
+    return render_template('admin/hierarchy.html', users=users)
