@@ -128,6 +128,13 @@ def add_client():
         messenger = request.form.get('messenger')
         messenger_type = request.form.get('messenger_type')
         email = request.form.get('email')
+        if email:
+        
+            gmail_regex = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
+            
+            if not re.fullmatch(gmail_regex, email):
+                flash('Ошибка: Система принимает только почту @gmail.com!', 'danger')
+                return redirect(request.url)
         
         if not re.fullmatch(r'^\+375 \(\d{2}\) \d{3}-\d{2}-\d{2}$', phone):
             flash('Ошибка: Введите корректный белорусский номер!', 'danger')
@@ -178,9 +185,19 @@ def edit_client(client_id):
         client.fio = request.form.get('fio')
         client.phone = phone
         client.messenger = request.form.get('messenger')
-        client.status = request.form.get('status')
+        # client.status = request.form.get('status')
         client.messenger_type = request.form.get('messenger_type')
-        client.email = request.form.get('email')
+        email = request.form.get('email')
+
+        if email:
+            # Регулярное выражение: 
+            # ^[a-zA-Z0-9._%+-]+  - любые буквы, цифры и символы ._%+- (минимум один)
+            # @gmail\.com$        - строго окончание @gmail.com
+            gmail_regex = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
+            
+            if not re.fullmatch(gmail_regex, email):
+                flash('Ошибка: Система принимает только почту @gmail.com!', 'danger')
+                return redirect(request.url)        
         
         # Если это админ, обновляем менеджера
         if current_user.role == 'admin':
@@ -360,28 +377,27 @@ def delete_proposal(proposal_id):
 
 
 
-# app/routes/manager.py
 
-@manager_bp.route('/clients/status/<int:client_id>', methods=['POST'])
-@login_required
-def update_client_status(client_id):
-    client = Client.query.get_or_404(client_id)
+# @manager_bp.route('/clients/status/<int:client_id>', methods=['POST'])
+# @login_required
+# def update_client_status(client_id):
+#     client = Client.query.get_or_404(client_id)
     
-    # Защита: Менеджер может менять статус только своих клиентов
-    if current_user.role != 'admin' and client.manager_id != current_user.id:
-        flash('У вас нет прав для изменения этого клиента.', 'danger')
-        return redirect(url_for('manager.list_clients'))
+#     # Защита: Менеджер может менять статус только своих клиентов
+#     if current_user.role != 'admin' and client.manager_id != current_user.id:
+#         flash('У вас нет прав для изменения этого клиента.', 'danger')
+#         return redirect(url_for('manager.list_clients'))
     
-    new_status = request.form.get('status')
-    # Список допустимых статусов (согласно вашему выбору в форме или ТЗ)
-    valid_statuses = ['new', 'in_progress', 'done', 'rejected']
+#     new_status = request.form.get('status')
+#     # Список допустимых статусов (согласно вашему выбору в форме или ТЗ)
+#     valid_statuses = ['new', 'in_progress', 'done', 'rejected']
     
-    if new_status in valid_statuses:
-        client.status = new_status
-        db.session.commit()
-        flash(f'Статус клиента {client.fio} обновлен.', 'success')
+#     if new_status in valid_statuses:
+#         client.status = new_status
+#         db.session.commit()
+#         flash(f'Статус клиента {client.fio} обновлен.', 'success')
     
-    return redirect(url_for('manager.list_clients'))
+#     return redirect(url_for('manager.list_clients'))
 
 
 
@@ -569,8 +585,8 @@ def send_proposal_to_client(proposal_id):
 
         # ТРИГГЕРЫ СТАТУСОВ
         proposal.status = 'sent'
-        if proposal.client.status == 'new':
-            proposal.client.status = 'in_progress'
+        # if proposal.client.status == 'new':
+        #     proposal.client.status = 'in_progress'
             
         db.session.commit()
         flash(f'КП успешно отправлено на почту {proposal.client.email}!', 'success')

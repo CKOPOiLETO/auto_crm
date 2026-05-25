@@ -47,7 +47,7 @@
                         <th>ФИО</th>
                         <th>Телефон</th>
                         <th>Мессенджер</th>
-                        <th>Статус</th>
+                        <!-- <th>Статус</th> -->
                         <th>Дата создания</th>
                         <th>Действия</th>
                     </tr>
@@ -75,22 +75,7 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <form action="{{ url_for('manager.update_client_status', client_id=client.id) }}" method="POST">
-                                <select name="status" class="form-select form-select-sm shadow-sm
-                                    {% if client.status == 'new' %}bg-info text-white
-                                    {% elif client.status == 'in_progress' %}bg-warning text-dark
-                                    {% elif client.status == 'done' %}bg-success text-white
-                                    {% elif client.status == 'rejected' %}bg-danger text-white{% endif %}" 
-                                    onchange="this.form.submit()" style="cursor: pointer; width: 130px;">
-                                    
-                                    <option value="new" {% if client.status == 'new' %}selected{% endif %}>Новый</option>
-                                    <option value="in_progress" {% if client.status == 'in_progress' %}selected{% endif %}>В работе</option>
-                                    <option value="done" {% if client.status == 'done' %}selected{% endif %}>Завершен</option>
-                                    <option value="rejected" {% if client.status == 'rejected' %}selected{% endif %}>Отказ</option>
-                                </select>
-                            </form>
-                        </td>
+                        
 
                         <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>

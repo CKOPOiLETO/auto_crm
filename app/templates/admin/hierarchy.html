@@ -39,7 +39,7 @@
                         <details class="mb-2 border rounded">
                             <summary class="p-3 bg-light text-secondary fw-bold d-flex align-items-center" style="cursor: pointer;">
                                 {{ client.fio }} ({{ client.phone }})
-                                <span class="badge bg-secondary ms-auto me-3">{{ client.status }}</span>
+                                <!-- <span class="badge bg-secondary ms-auto me-3">{{ client.status }}</span> -->
                                 <span class="badge bg-success">{{ client.proposals|length }} КП</span>
                             </summary>
                             
@@ -62,7 +62,19 @@
                                             <!-- <td class="text-muted ps-3">#{{ p.id }}</td> -->
                                             <td class="fw-bold">{{ p.car.title }}</td>
                                             <td class="text-success fw-bold">${{ p.total_price_usd }}</td>
-                                            <td><span class="badge bg-info">{{ p.status }}</span></td>
+                                            <td>
+                                                {% if p.status == 'draft' %}
+                                                    <span class="badge bg-secondary text-white">Черновик</span>
+                                                {% elif p.status == 'sent' %}
+                                                    <span class="badge bg-primary">Отправлено</span>
+                                                {% elif p.status == 'accepted' %}
+                                                    <span class="badge bg-success">Принято</span>
+                                                {% elif p.status == 'rejected' %}
+                                                    <span class="badge bg-danger">Отказ</span>
+                                                {% else %}
+                                                    <span class="badge bg-dark">{{ p.status }}</span>
+                                                {% endif %}
+                                            </td>
                                             <td class="pe-3">
                                                 <a href="{{ url_for('manager.generate_proposal_pdf', proposal_id=p.id) }}" class="btn btn-sm btn-outline-danger" target="_blank" title="Скачать PDF">📄 PDF</a>
                                             </td>

@@ -24,8 +24,15 @@
                         <div class="form-text">Обязательный формат: +375 (XX) XXX-XX-XX</div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-muted fw-bold">E-mail</label>
-                        <input type="email" name="email" class="form-control" value="{{ client.email if client else '' }}" placeholder="example@mail.com">
+                        <label class="form-label text-muted fw-bold">E-mail (только Gmail)</label>
+                        <input type="email" 
+                            name="email" 
+                            class="form-control" 
+                            value="{{ client.email if client else '' }}" 
+                            placeholder="user@gmail.com"
+                            pattern="^[a-zA-Z0-9._%+-]+@gmail\.com$"
+                            title="Пожалуйста, введите корректный адрес @gmail.com">
+                        <div class="form-text">Система работает только с адресами @gmail.com</div>
                     </div>
                     
                     <div class="mb-3">
@@ -40,7 +47,7 @@
                         </div>
                     </div>
                     
-                    {% if client %}
+                    <!-- {% if client %}
                     <div class="mb-4">
                         <label class="form-label text-muted fw-bold">Статус клиента</label>
                         <select name="status" class="form-select bg-light">
@@ -50,7 +57,7 @@
                             <option value="rejected" {% if client.status == 'rejected' %}selected{% endif %}>Отказ</option>
                         </select>
                     </div>
-                    {% endif %}
+                    {% endif %} -->
                     {% if current_user.role == 'admin' %}
                     <div class="mb-4 p-3 border border-danger rounded bg-light">
                         <label class="form-label text-danger fw-bold">⚙️ [Админ] Ответственный сотрудник</label>
