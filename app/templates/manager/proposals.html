@@ -24,15 +24,37 @@
     </div>
 
     <!-- ФОРМА ПОИСКА -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
+    <div class="card shadow-sm border-0 mb-4 bg-light">
+        <div class="card-body p-3">
             <form method="GET" action="{{ url_for('manager.list_proposals') }}">
-                <div class="input-group">
-                    <input type="text" name="q" class="form-control" placeholder="Поиск по клиенту или названию авто..." value="{{ q }}">
-                    <button class="btn btn-outline-secondary" type="submit">Найти</button>
-                    {% if q %}
-                    <a href="{{ url_for('manager.list_proposals') }}" class="btn btn-outline-secondary" title="Сбросить поиск">Сбросить</a>
-                    {% endif %}
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" name="q" class="form-control" placeholder="Поиск по ФИО или названию авто..." value="{{ q }}">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="client_id" class="form-select">
+                            <option value="">-- Все клиенты --</option>
+                            {% for c in my_clients %}
+                                <option value="{{ c.id }}" {% if client_id_filter == c.id|string %}selected{% endif %}>{{ c.fio }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-select">
+                            <option value="">-- Все статусы --</option>
+                            <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Черновики</option>
+                            <option value="sent" {% if status_filter == 'sent' %}selected{% endif %}>Отправленные</option>
+                            <option value="accepted" {% if status_filter == 'accepted' %}selected{% endif %}>Принятые</option>
+                            <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Отказы</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button class="btn btn-primary w-100" type="submit"> Найти</button>
+                        {% if q or client_id_filter or status_filter %}
+                        <!-- Кнопка сброса просто перекидывает на чистый маршрут без параметров -->
+                        <a href="{{ url_for('manager.list_proposals') }}" class="btn btn-outline-danger" title="Сбросить все фильтры">Сброс</a>
+                        {% endif %}
+                    </div>
                 </div>
             </form>
         </div>
@@ -43,9 +65,10 @@
             <table class="table table-hover table-striped align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
-                        {% macro sort_link(field, text) %}
+                       {% macro sort_link(field, text) %}
                             {% set new_order = 'asc' if sort_by == field and order == 'desc' else 'desc' %}
-                            <a href="{{ url_for('manager.list_proposals', q=q, sort_by=field, order=new_order) }}" class="text-white text-decoration-none">
+                            <!-- Добавлены client_id и status, чтобы фильтры не сбрасывались при сортировке -->
+                            <a href="{{ url_for('manager.list_proposals', q=q, sort_by=field, order=new_order, client_id=client_id_filter, status=status_filter) }}" class="text-white text-decoration-none">
                                 {{ text }}
                                 {% if sort_by == field %}
                                     {% if order == 'desc' %}▼{% else %}▲{% endif %}
@@ -92,7 +115,7 @@
                             </form>
                             <a href="{{ url_for('manager.generate_proposal_pdf', proposal_id=p.id) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Скачать PDF">📄</a>
                             <form action="{{ url_for('manager.send_proposal_to_client', proposal_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Сгенерировать PDF и отправить клиенту на почту?');">
-                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Отправить на Email">📧</button>
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Отправить на Email">✉️</button>
                             </form>
                             <button type="button" class="btn btn-sm btn-outline-warning" title="Переслать другому клиенту"
                                     onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('cloneModal{{ p.id }}')).show()">

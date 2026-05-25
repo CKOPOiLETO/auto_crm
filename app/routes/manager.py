@@ -204,32 +204,41 @@ def delete_client(client_id):
     return redirect(url_for('manager.list_clients'))
 
 
+# app/routes/manager.py
 
 @manager_bp.route('/proposals')
 @login_required
 def list_proposals():
-    # 1. Получаем параметры из URL (q - поисковый запрос, sort_by - поле сортировки)
+    # 1. Получаем все параметры поиска и фильтрации из URL
     q = request.args.get('q', '')
     sort_by = request.args.get('sort_by', 'date')
     order = request.args.get('order', 'desc')
+    
+    # НОВЫЕ ФИЛЬТРЫ
+    client_id_filter = request.args.get('client_id', '')
+    status_filter = request.args.get('status', '')
 
-    # 2. Начинаем строить базовый запрос
     query = Proposal.query.join(Client).join(Car)
 
-    # 3. Применяем фильтр для менеджера (видит только свои) или админа (видит все)
+    # Разграничение прав
     if current_user.role != 'admin':
         query = query.filter(Client.manager_id == current_user.id)
     
-    # 4. Если есть поисковый запрос, добавляем фильтр
+    # --- ПРИМЕНЯЕМ ФИЛЬТРЫ К SQL-ЗАПРОСУ ---
+    if client_id_filter:
+        query = query.filter(Proposal.client_id == int(client_id_filter))
+        
+    if status_filter:
+        query = query.filter(Proposal.status == status_filter)
+        
     if q:
-        search_term = f"%{q}%"
+        term = f"%{q}%"
         query = query.filter(or_(
-            Client.fio.ilike(search_term),
-            Car.title.ilike(search_term)
+            Client.fio.ilike(term),
+            Car.title.ilike(term)
         ))
     
-    # 5. Применяем сортировку
-    # Безопасная карта, чтобы пользователь не мог сортировать по любым полям
+    # Сортировка
     sort_map = {
         'date': Proposal.created_at,
         'client': Client.fio,
@@ -244,19 +253,23 @@ def list_proposals():
     else:
         query = query.order_by(sort_column.asc())
 
-    # 6. Выполняем итоговый запрос
     proposals = query.all()
+
+    # Выгружаем клиентов для модального окна И ДЛЯ ФИЛЬТРА
     if current_user.role == 'admin':
         my_clients = Client.query.order_by(Client.fio).all()
     else:
         my_clients = Client.query.filter_by(manager_id=current_user.id).order_by(Client.fio).all()
     
-    # Передаем параметры поиска и сортировки обратно в шаблон, чтобы он "помнил" выбор
-    return render_template('manager/proposals.html', proposals=proposals, q=q, 
-                           sort_by=sort_by, order=order, my_clients=my_clients)
-
-
-
+    # Не забываем передать новые переменные фильтров в HTML
+    return render_template('manager/proposals.html', 
+                           proposals=proposals, 
+                           q=q, 
+                           sort_by=sort_by, 
+                           order=order, 
+                           my_clients=my_clients,
+                           client_id_filter=client_id_filter,
+                           status_filter=status_filter)
 
 @manager_bp.route('/proposals/clone/<int:proposal_id>', methods=['POST'])
 @login_required
@@ -626,3 +639,5 @@ def recalculate_proposal(proposal_id):
                 pass
                 
     return redirect(url_for('manager.list_proposals'))
+
+
