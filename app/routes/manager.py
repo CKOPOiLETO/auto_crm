@@ -22,6 +22,7 @@ from app.services.bidcars_parser import BidCarsParser
 from app.routes.parser import _fetch_bidcars_image_bytes
 from app.services.email_sender import send_proposal_email
 from app.models.user import User 
+from decimal import Decimal
 
 
 
@@ -570,5 +571,58 @@ def send_proposal_to_client(proposal_id):
 
 
 
-
-
+@manager_bp.route('/proposals/recalculate/<int:proposal_id>', methods=['POST'])
+@login_required
+def recalculate_proposal(proposal_id):
+    proposal = Proposal.query.get_or_404(proposal_id)
+    
+    if current_user.role != 'admin' and proposal.client.manager_id != current_user.id:
+        flash('У вас нет прав для изменения этого предложения.', 'danger')
+        return redirect(url_for('manager.list_proposals'))
+    
+    driver = None
+    try:
+        car = proposal.car
+        
+        # 1. ЗАПУСКАЕМ ПАРСЕР, ЧТОБЫ УЗНАТЬ НОВУЮ СТАВКУ
+        if car.auction_link:
+            driver = create_driver()
+            parser = BidCarsParser(driver)
+            data = parser.parse_all(car.auction_link)
+            
+            # Если данные успешно получены и цена не пустая
+            if data and data.get('price') and data.get('price') != "$0":
+                clean_price = re.sub(r'[^\d.]', '', data.get('price', '0'))
+                if clean_price:
+                    # Обновляем цену машины в базе данных!
+                    car.price_usd = Decimal(clean_price)
+        
+        # 2. ПЕРЕСЧИТЫВАЕМ ЭКОНОМИКУ (уже с новой ценой авто и свежими тарифами)
+        calculator = AutoCalculator()
+        calc_result = calculator.calculate_all(
+            price_usd=float(car.price_usd),
+            engine_volume=car.engine_volume or 0,
+            year=car.manufacture_year or 2020,
+            custom_shipping=float(proposal.shipping_cost or 0)
+        )
+        
+        # 3. ОБНОВЛЯЕМ ПРЕДЛОЖЕНИЕ
+        proposal.customs_fee = Decimal(calc_result['duty_usd'])
+        proposal.total_price_usd = Decimal(calc_result['total_usd'])
+        proposal.total_price_byn = Decimal(calc_result['total_byn'])
+        
+        db.session.commit()
+        flash(f'Данные обновлены! Актуальная ставка: ${car.price_usd}, Итоговая стоимость: ${proposal.total_price_usd}', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при пересчете (возможно, лот удален с аукциона): {e}', 'danger')
+    finally:
+        # Обязательно закрываем браузер
+        if driver:
+            try:
+                driver.quit()
+            except:
+                pass
+                
+    return redirect(url_for('manager.list_proposals'))
