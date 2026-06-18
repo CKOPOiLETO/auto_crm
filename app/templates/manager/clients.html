@@ -10,13 +10,13 @@
     </div>
 
     <!-- Уведомления -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
+    <!-- {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
             <div class="alert alert-{{ category }}">{{ message }}</div>
             {% endfor %}
         {% endif %}
-    {% endwith %}
+    {% endwith %} -->
     <!-- Вставьте это перед <div class="card shadow-sm"> -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
@@ -95,7 +95,7 @@
         </div>
     </div>
     <div class="text-center mt-4">
-        <a href="/parser" class="btn btn-secondary">Вернуться к парсеру</a>
+        <a href="/parser" class="btn btn-secondary">Вернуться к калькулятору</a>
     </div>
 </div>
 {% endblock %}

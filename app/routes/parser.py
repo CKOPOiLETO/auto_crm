@@ -148,10 +148,30 @@ def index():
         if url:
             driver = None
             try:
-                # 1. Запуск браузера и парсинг
-                driver = create_driver()
-                parser = BidCarsParser(driver)
-                data = parser.parse_all(url)
+                # 1. Запуск браузера и парсинг (до 2 попыток — окно иногда закрывается при Cloudflare)
+                last_err = None
+                for attempt in range(2):
+                    if driver:
+                        try:
+                            driver.quit()
+                        except Exception:
+                            pass
+                        driver = None
+                    try:
+                        driver = create_driver()
+                        parser = BidCarsParser(driver)
+                        data = parser.parse_all(url)
+                        last_err = None
+                        break
+                    except (NoSuchWindowException, WebDriverException, RuntimeError) as e:
+                        last_err = e
+                        print(f"[!] Selenium attempt {attempt + 1} failed: {e}")
+                        if attempt == 0:
+                            print("[*] Повторная попытка парсинга...")
+                            continue
+                        raise
+                if last_err:
+                    raise last_err
 
                 # Контекст для прокси фото (Cloudflare пропускает только с cookie из этого браузера)
                 if data and data.get('photos'):

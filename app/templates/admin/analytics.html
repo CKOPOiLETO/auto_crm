@@ -75,7 +75,7 @@
     <!-- Эффективность менеджеров -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
-            <span>Объективный отчет по эффективности менеджеров</span>
+            <span>Отчет по эффективности менеджеров</span>
             <a href="{{ url_for('admin.export_analytics_csv') }}" class="btn btn-sm btn-success shadow-sm">Экспорт в Excel (CSV)</a>
         </div>
         <div class="card-body p-0 table-responsive">
@@ -125,6 +125,8 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
 <script>
     // --- ПЛАГИН И ФУНКЦИЯ ДЛЯ СКАЧИВАНИЯ ГРАФИКОВ В PNG С БЕЛЫМ ФОНОМ ---
     const whiteBackgroundPlugin = {
@@ -170,16 +172,35 @@
         const translatedLabels = rawLabels.map(status => statusMap[status] || status);
         const dynamicColors = rawLabels.map(status => colorMap[status] || '#cccccc');
 
-        new Chart(ctxStatus, {
+       new Chart(ctxStatus, {
             type: 'pie',
             data: {
-                labels: translatedLabels,
+                labels: translatedLabels, // Русские названия
                 datasets:[{
                     data: {{ status_data | tojson }},
-                    backgroundColor: dynamicColors
+                    backgroundColor: dynamicColors // Правильные цвета
                 }]
             },
-            plugins: [whiteBackgroundPlugin] // Добавляем плагин белого фона
+            options: {
+                plugins: {
+                    // Настройка плагина вывода цифр
+                    datalabels: {
+                        color: '#ffffff', // Белый цвет текста
+                        font: {
+                            weight: 'bold', // Жирный шрифт
+                            size: 16        // Размер шрифта
+                        },
+                        formatter: function(value, context) {
+                            // Если заявок 0, не выводим цифру, чтобы не захламлять график
+                            if (value === 0) return '';
+                            // Возвращаем просто число (можно добавить ' шт.', если нужно: return value + ' шт.';)
+                            return value; 
+                        }
+                    }
+                }
+            },
+            // Обязательно указываем ChartDataLabels в массиве плагинов!
+            plugins: [whiteBackgroundPlugin, ChartDataLabels] 
         });
     {% endif %}
 

@@ -197,7 +197,10 @@ def edit_client(client_id):
             
             if not re.fullmatch(gmail_regex, email):
                 flash('Ошибка: Система принимает только почту @gmail.com!', 'danger')
-                return redirect(request.url)        
+                return redirect(request.url)    
+            else:
+                client.email = request.form.get('email')
+   
         
         # Если это админ, обновляем менеджера
         if current_user.role == 'admin':

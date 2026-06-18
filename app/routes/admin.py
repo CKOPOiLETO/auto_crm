@@ -21,6 +21,9 @@ from sqlalchemy import func, desc, case, cast, Date
 import csv
 import io
 from flask import Response
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
+import io
 
 def admin_required(f):
     @wraps(f)
@@ -193,13 +196,30 @@ def delete_user(user_id):
 @login_required
 @admin_required
 def analytics():
-    # --- 1. Заявки в разрезе статуса ---
-    status_counts = db.session.query(Proposal.status, func.count(Proposal.id)).group_by(Proposal.status).all()
+    # ========================================================
+    # 1. Заявки в разрезе статуса (С ФИЛЬТРОМ ПО ДАТАМ)
+    # ========================================================
+    status_start_str = request.args.get('status_date_from')
+    status_end_str = request.args.get('status_date_to')
+    
+    status_query = db.session.query(Proposal.status, func.count(Proposal.id))
+    
+    # Применяем фильтры дат, если админ их выбрал
+    if status_start_str:
+        st_date = datetime.strptime(status_start_str, '%Y-%m-%d').date()
+        status_query = status_query.filter(cast(Proposal.created_at, Date) >= st_date)
+    if status_end_str:
+        en_date = datetime.strptime(status_end_str, '%Y-%m-%d').date()
+        status_query = status_query.filter(cast(Proposal.created_at, Date) <= en_date)
+        
+    status_counts = status_query.group_by(Proposal.status).all()
     status_labels = [s[0] for s in status_counts]
     status_data = [s[1] for s in status_counts]
 
-    # --- 2. Конверсия во времени (С ФИЛЬТРОМ ДАТ) ---
-    # Получаем даты из запроса или ставим по умолчанию (последние 14 дней)
+
+    # ========================================================
+    # 2. Конверсия во времени (С ФИЛЬТРОМ ПО ДАТАМ)
+    # ========================================================
     start_str = request.args.get('start_date')
     end_str = request.args.get('end_date')
     today = datetime.now().date()
@@ -211,11 +231,9 @@ def analytics():
         end_date = today
         start_date = end_date - timedelta(days=13)
 
-    # Защита от "перевернутых" дат (если "от" больше чем "до")
     if start_date > end_date:
         start_date, end_date = end_date, start_date
 
-    # Запрос с учетом выбранного периода
     daily_stats = db.session.query(
         cast(Proposal.created_at, Date).label('date'),
         func.sum(case((Proposal.status.in_(['sent', 'accepted', 'rejected']), 1), else_=0)).label('sent_count'),
@@ -231,32 +249,32 @@ def analytics():
     chart_sent = []
     chart_accepted = []
 
-    # Динамически вычисляем количество дней в выбранном периоде
+    # Рисуем график строго по выбранному диапазону
     delta_days = (end_date - start_date).days
-
     for i in range(delta_days + 1):
         current_d = start_date + timedelta(days=i)
         chart_dates.append(current_d.strftime('%d.%m'))
         chart_sent.append(int(stats_dict.get(current_d, {}).get('sent', 0)))
         chart_accepted.append(int(stats_dict.get(current_d, {}).get('accepted', 0)))
 
-    # Общая конверсия для выбранного периода
     total_sent = sum(chart_sent)
     total_acc = sum(chart_accepted)
     conversion_rate = round((total_acc / total_sent * 100), 2) if total_sent > 0 else 0
 
-    # --- 3. Эффективность менеджеров ---
+
+    # ========================================================
+    # 3. Эффективность менеджеров и Выручка
+    # ========================================================
     manager_stats = db.session.query(
         User.full_name,
-        func.count(Proposal.id).label('total_proposals'), # Всего попыток
-        func.sum(case((Proposal.status == 'sent', 1), else_=0)).label('pending_proposals'), # В ожидании (работа с клиентом идет)
-        func.sum(case((Proposal.status == 'accepted', 1), else_=0)).label('accepted_proposals'), # Успешные
-        func.sum(case((Proposal.status == 'accepted', Proposal.total_price_usd), else_=0)).label('total_revenue') # Выручка
+        func.count(Proposal.id).label('total_proposals'),
+        func.sum(case((Proposal.status == 'sent', 1), else_=0)).label('pending_proposals'),
+        func.sum(case((Proposal.status == 'accepted', 1), else_=0)).label('accepted_proposals'),
+        func.sum(case((Proposal.status == 'accepted', Proposal.total_price_usd), else_=0)).label('total_revenue')
     ).join(Client, Client.manager_id == User.id)\
      .join(Proposal, Proposal.client_id == Client.id)\
-     .group_by(User.id, User.full_name).order_by(desc('total_revenue')).all() 
+     .group_by(User.id, User.full_name).order_by(desc('total_revenue')).all()
 
-    # --- 4. Общая выручка ---
     total_revenue = db.session.query(func.sum(Proposal.total_price_usd)).filter_by(status='accepted').scalar() or 0
 
     return render_template('admin/analytics.html', 
@@ -268,12 +286,12 @@ def analytics():
                            chart_dates=chart_dates,
                            chart_sent=chart_sent,
                            chart_accepted=chart_accepted,
-                           # Передаем даты обратно в шаблон, чтобы они остались в полях ввода
+                           # Возвращаем даты обратно в HTML
                            start_date=start_date.strftime('%Y-%m-%d'),
-                           end_date=end_date.strftime('%Y-%m-%d')
+                           end_date=end_date.strftime('%Y-%m-%d'),
+                           status_date_from=status_start_str or '',
+                           status_date_to=status_end_str or ''
                            )
-
-
 
 
 @admin_bp.route('/hierarchy')
@@ -295,12 +313,12 @@ def hierarchy():
 
 
 
-# --- ЭКСПОРТ ОТЧЕТА В CSV (EXCEL) ---
+# --- ЭКСПОРТ ОТЧЕТА В НАСТОЯЩИЙ EXCEL (.XLSX) ---
 @admin_bp.route('/analytics/export_csv')
 @login_required
 @admin_required
 def export_analytics_csv():
-    # 1. Запрашиваем те же данные по менеджерам, что и для таблицы на сайте
+    # 1. Запрашиваем данные
     manager_stats = db.session.query(
         User.full_name,
         func.count(Proposal.id).label('total_proposals'),
@@ -311,26 +329,27 @@ def export_analytics_csv():
      .join(Proposal, Proposal.client_id == Client.id)\
      .group_by(User.id, User.full_name).order_by(desc('total_revenue')).all()
 
-    # 2. Создаем CSV в оперативной памяти (без сохранения на диск сервера)
-    output = io.StringIO()
-    
-    # 3. МАГИЯ ДЛЯ EXCEL: Добавляем BOM-маркер, чтобы кириллица открылась без иероглифов
-    output.write('\ufeff')
-    
-    # Создаем "писателя", разделитель - точка с запятой (стандарт для русского Excel)
-    writer = csv.writer(output, delimiter=';')
+    # 2. Создаем Excel-книгу и активный лист
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Эффективность менеджеров"
 
-    # 4. Пишем строку с заголовками
-    writer.writerow(['Сотрудник', 'Создано КП', 'Ожидают ответа', 'Сделок закрыто', 'Конверсия (%)', 'Сумма сделок (USD)'])
+    # 3. Пишем заголовки и делаем их ЖИРНЫМИ и по центру
+    headers = ['Сотрудник', 'Создано КП', 'Ожидают ответа', 'Сделок закрыто', 'Конверсия', 'Сумма сделок (USD)']
+    ws.append(headers)
+    
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center')
 
-    # 5. В цикле записываем данные каждого менеджера
+    # 4. Записываем данные (теперь как настоящие числа, а не текст!)
     for m in manager_stats:
         total = m.total_proposals or 0
         accepted = m.accepted_proposals or 0
-        conversion = round((accepted / total * 100), 1) if total > 0 else 0
-        revenue = m.total_revenue or 0
+        revenue = float(m.total_revenue or 0)
+        conversion = (accepted / total) if total > 0 else 0 # Просто число, Excel сам сделает проценты
 
-        writer.writerow([
+        ws.append([
             m.full_name,
             total,
             m.pending_proposals or 0,
@@ -339,13 +358,30 @@ def export_analytics_csv():
             revenue
         ])
 
-    # 6. Отдаем файл пользователю для скачивания
+    # 5. Красивое форматирование цифр и ширины колонок
+    for row_idx in range(2, len(manager_stats) + 2):
+        ws[f"E{row_idx}"].number_format = '0.0%' # Ячейка Конверсии: формат процентов
+        ws[f"F{row_idx}"].number_format = '#,##0.00' # Ячейка Суммы: разделитель тысяч
+
+    # Задаем фиксированную ширину колонок, чтобы всё помещалось
+    ws.column_dimensions['A'].width = 35 # Сотрудник
+    ws.column_dimensions['B'].width = 15 # Создано
+    ws.column_dimensions['C'].width = 18 # Ожидают
+    ws.column_dimensions['D'].width = 18 # Сделок
+    ws.column_dimensions['E'].width = 15 # Конверсия
+    ws.column_dimensions['F'].width = 25 # Сумма
+
+    # 6. Сохраняем в бинарный поток
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    # 7. Отдаем пользователю файл формата .xlsx
     return Response(
         output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=Managers_Efficiency_Report.csv"}
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=Managers_Efficiency_Report.xlsx"}
     )
-
 
 # --- ЭКСПОРТ ДАННЫХ ДИАГРАММЫ СТАТУСОВ ---
 @admin_bp.route('/analytics/export_status_csv')

@@ -16,7 +16,7 @@
 <div id="loading">
     <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
     <h3 class="mt-3">Парсинг данных...</h3>
-    <p class="text-muted">Подождите, бот обходит защиту Cloudflare (15-20 сек)</p>
+    <p class="text-muted">Подождите, бот обходит защиту Cloudflare (15–45 сек). <strong>Не закрывайте окно Chrome</strong> — оно откроется автоматически.</p>
 </div>
 
 <div class="py-4">
@@ -70,7 +70,14 @@
                         <tbody>
                             {% for key, value in data.params.items() %}
                             <tr>
-                                <td class="fw-bold text-muted">{{ key }}</td>
+                                <!-- Если ключ технический - переводим, иначе выводим как есть -->
+                                <td class="fw-bold text-muted">
+                                    {% if key == 'engine_volume' %}
+                                        Объем двигателя (см³)
+                                    {% else %}
+                                        {{ key }}
+                                    {% endif %}
+                                </td>
                                 <td>{{ value }}</td>
                             </tr>
                             {% endfor %}
@@ -148,6 +155,11 @@
                         <li class="list-group-item bg-transparent d-flex justify-content-between">
                             <span>Доставка (США + Море + Европа):</span> 
                             <strong>${{ calc_result.shipping_usa }} + ${{ calc_result.shipping_sea }} + €{{ calc_result.shipping_eu_eur }}</strong>
+                        </li>
+                        <li class="list-group-item bg-transparent py-1">
+                            <small class="text-muted">
+                                Курсы пересчета: 1$ = {{ calc_result.rate_usd }} BYN | 1€ = {{ calc_result.rate_eur }} BYN
+                            </small>
                         </li>
                         <li class="list-group-item bg-transparent d-flex justify-content-between">
                             <span>Сбор аукциона:</span> <strong>{{ calc_result.auction_rate_pct }}%</strong>
@@ -284,6 +296,10 @@
                         Без логистики (самовывоз) — $0
                     </option>
                 </select>
+                <div class="form-text mt-2 text-end" style="font-size: 0.85rem;">
+                    <span class="badge bg-light text-dark border">Курс НБ РБ: 1$ = {{ calc_result.rate_usd }} | 1€ = {{ calc_result.rate_eur }}</span>
+                </div>
+
             </div>
 
             <div class="alert alert-success d-flex justify-content-between align-items-center mb-0">

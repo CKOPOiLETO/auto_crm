@@ -4,44 +4,72 @@ import re
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchWindowException, WebDriverException
+
 
 class BidCarsParser:
-    def __init__(self, driver, timeout=30):
+    def __init__(self, driver, timeout=45):
         self.driver = driver
         self.wait = WebDriverWait(driver, timeout)
+
+    def _ensure_window(self):
+        """Переключаемся на живую вкладку (Cloudflare иногда открывает/перезагружает окно)."""
+        handles = self.driver.window_handles
+        if not handles:
+            raise NoSuchWindowException("Браузер закрыт — не закрывайте окно Chrome во время парсинга")
+        current = self.driver.current_window_handle
+        if current not in handles:
+            self.driver.switch_to.window(handles[-1])
+        try:
+            _ = self.driver.current_url
+        except WebDriverException as e:
+            if "no such window" in str(e).lower() or "web view not found" in str(e).lower():
+                if len(handles) > 1:
+                    self.driver.switch_to.window(handles[-1])
+                else:
+                    raise NoSuchWindowException(str(e)) from e
+            raise
 
     # Находим метод open_lot в файле app/services/bidcars_parser.py и заменяем:
 
     def open_lot(self, url: str):
         print(f"[*] Переход на страницу: {url}")
-        try:
-            self.driver.get(url)
-            print("[*] Ожидаю загрузки данных лота...")
-            
-            # Умное ожидание с проверкой на None
-            def check_loaded(d):
-                try:
-                    source = d.page_source
-                    if source is None:
-                        return False
-                    # Активные и завершённые лоты (финальная ставка / sold)
-                    markers = (
-                        "VIN", "Одометр", "Current Bid", "Текущая ставка",
-                        "Final bid", "Финальная", "Sold for", "Продано",
-                    )
-                    return any(m in source for m in markers)
-                except Exception:
-                    return False
+        self._ensure_window()
+        self.driver.get(url)
+        self._ensure_window()
+        print("[*] Ожидаю загрузки данных лота (Cloudflare, до 45 сек)...")
 
+        markers = (
+            "VIN", "Одометр", "Current Bid", "Текущая ставка",
+            "Final bid", "Финальная", "Sold for", "Продано",
+        )
+
+        def check_loaded(d):
+            try:
+                self._ensure_window()
+                source = d.page_source
+                if not source:
+                    return False
+                return any(m in source for m in markers)
+            except (NoSuchWindowException, WebDriverException):
+                return False
+
+        try:
             self.wait.until(check_loaded)
-            time.sleep(3) 
-            self.click_show_more()
         except Exception as e:
-            print(f"[-] Данные не появились или окно закрылось: {e}")
-            # Не выбрасываем ошибку дальше, чтобы парсер попытался 
-            # собрать то, что успело загрузиться
+            self._ensure_window()
+            source = self.driver.page_source or ""
+            if not any(m in source for m in markers):
+                raise RuntimeError(
+                    "Страница лота не загрузилась. Не закрывайте окно Chrome и попробуйте снова."
+                ) from e
+
+        time.sleep(2)
+        self._ensure_window()
+        self.click_show_more()
 
     def click_show_more(self):
+        self._ensure_window()
         selectors = [
             "//div[contains(@class, 'show-more')]",
             "//span[contains(text(), 'Показать больше')]",
@@ -338,6 +366,7 @@ class BidCarsParser:
 
     def parse_all(self, url: str) -> dict:
         self.open_lot(url)
+        self._ensure_window()
         return {
             "url": url,
             "title": self.parse_title(),
